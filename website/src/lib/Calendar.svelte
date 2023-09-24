@@ -24,6 +24,8 @@
 	}
 
 	let date = new Date();
+	let selectingMonth = false;
+	let selectingYear = false;
 
 	// The current page on the calendar
 	let focusedDay = date.getDate();
@@ -219,27 +221,66 @@
 		}}>{`>>`}</button
 	>
 	<div class="month_navigation">
-		<button
-			on:click={() => {
-				if (focusedMonth < 1) {
-					focusedMonth = 11;
-					focusedYear--;
-				} else {
-					focusedMonth--;
-				}
-			}}>{`<`}</button
-		>
-		<h1>{monthNames[focusedMonth] + ' ' + focusedYear}</h1>
-		<button
-			on:click={() => {
-				if (focusedMonth > 10) {
-					focusedMonth = 0;
-					focusedYear++;
-				} else {
-					focusedMonth++;
-				}
-			}}>{`>`}</button
-		>
+		{#if selectingMonth || selectingYear}
+			<div class="button_container">
+				{#if selectingMonth}
+					{#each monthNames as month, i}
+						<button
+							class:focused_button={i === focusedMonth}
+							on:click={() => {
+								(focusedMonth = i), (selectingMonth = false);
+							}}>{month.slice(0, 3).toUpperCase()}</button
+						>
+					{/each}
+				{/if}
+
+				{#if selectingYear}
+					{#each Array(12).fill(0) as month, i}
+						<button
+							class:focused_button={focusedYear - 5 + i === focusedYear}
+							on:click={() => {
+								(focusedYear = focusedYear - 5 + i), (selectingYear = false);
+							}}>{focusedYear - 5 + i}</button
+						>
+					{/each}
+				{/if}
+			</div>
+		{:else}
+			<button
+				on:click={() => {
+					if (focusedMonth < 1) {
+						focusedMonth = 11;
+						focusedYear--;
+					} else {
+						focusedMonth--;
+					}
+				}}>{`<`}</button
+			>
+			<h1>
+				<button
+					on:click={() => {
+						selectingMonth = true;
+					}}>{monthNames[focusedMonth]}</button
+				>
+				<button
+					on:click={() => {
+						selectingYear = true;
+					}}
+				>
+					{focusedYear}</button
+				>
+			</h1>
+			<button
+				on:click={() => {
+					if (focusedMonth > 10) {
+						focusedMonth = 0;
+						focusedYear++;
+					} else {
+						focusedMonth++;
+					}
+				}}>{`>`}</button
+			>
+		{/if}
 	</div>
 
 	<header>
@@ -291,27 +332,72 @@
 </section>
 
 <style>
+	.button_container {
+		display: flex;
+		gap: 4px;
+	}
+	.button_container > button {
+		font-size: 1rem;
+		cursor: pointer;
+		width: 3rem;
+		height: 2rem;
+		background-color: rgb(168, 0, 0);
+		border: none;
+		color: white;
+		border-radius: 4px;
+		font-weight: 600;
+	}
+	.button_container > .focused_button {
+		background-color: red;
+	}
+	button:hover {
+		opacity: 0.6;
+	}
+	.month_navigation > h1 > button {
+		cursor: pointer;
+		background-color: rgb(168, 0, 0);
+		border: none;
+		border-radius: 4px;
+		font-weight: 600;
+		color: white;
+		height: 2rem;
+		font-size: 1rem;
+	}
+	.month_navigation > h1 > button:first-child {
+		width: 160px;
+	}
+	.month_navigation > h1 > button:last-child {
+		width: auto;
+	}
 	.month_navigation {
 		display: flex;
 		justify-content: center;
 		align-items: center;
+		height: 4rem;
+		gap: 6px;
 	}
+
 	.month_navigation > h1 {
-		width: 250px;
-		max-width: 250px;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0px;
+		margin: 0px;
+		gap:inherit;
 	}
+
 	.month_navigation > button {
-		aspect-ratio: 1;
-		border-radius: 50%;
-		width: 50px;
-		height: 50px;
-		background-color: transparent;
-		box-shadow: 0px 0px 3px 1px rgb(5, 5, 40);
-	}
-	.month_navigation > button:hover {
 		cursor: pointer;
-		box-shadow: 0px 0px 10px 4px rgb(5, 5, 40);
+		background-color: rgb(168, 0, 0);
+		border: none;
+		border-radius: 4px;
+		font-weight: 800;
+		color: white;
+		width: 3rem;
+		height: 2rem;
 	}
+
 	.selection_wrapper {
 		display: flex;
 		flex-direction: column;
