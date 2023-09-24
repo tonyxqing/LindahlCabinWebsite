@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { monthNames, daysOfWeek, numDaysInMonth } from './Utils';
 	// Zeller's Congruence formula to get the first day of month
 	function getFirstDayOfWeek(month: number, day: number, year: number) {
@@ -28,14 +29,11 @@
 	let focusedDay = date.getDate();
 	let focusedMonth = date.getMonth();
 	let focusedYear = date.getFullYear();
-	let isDragging = false;
-	let selectedDate: Date | null = new Date(
-		Date.parse(`${focusedYear},${focusedMonth + 1},${focusedDay}`)
-	);
+	let selectedDate: Date | null = new Date(`${focusedYear},${focusedMonth + 1},${focusedDay}`);
 	let secondSelectedDate: Date | null = null;
-	let inputDate: string | null = null;
-	let secondInputDate: string | null = null;
-	$: isActive = (day: number) => {
+	let inputDate: HTMLInputElement;
+	let secondInputDate: HTMLInputElement;
+	$: isActive = (day: number, offset) => {
 		if (selectedDate) {
 			let selectedYear = selectedDate.getFullYear();
 			let selectedMonth = selectedDate.getMonth();
@@ -46,9 +44,9 @@
 				let secondSelectedDay = secondSelectedDate.getDate();
 
 				if (
-					selectedMonth == focusedMonth &&
+					selectedMonth == (focusedMonth + offset) % 12 &&
 					selectedYear == focusedYear &&
-					secondSelectedMonth == focusedMonth &&
+					secondSelectedMonth == (focusedMonth + offset) % 12 &&
 					secondSelectedYear == focusedYear
 				) {
 					let predicate = selectedDay <= day + 1 && secondSelectedDay >= day + 1;
@@ -57,7 +55,7 @@
 
 				if (selectedYear <= focusedYear && secondSelectedYear >= focusedYear) {
 					const monthOffset = (secondSelectedYear - selectedYear) * 12;
-					const focusedMonthOffset = (focusedYear - selectedYear) * 12;
+					const focusedMonthOffset = (focusedYear - selectedYear) * 12 + offset;
 
 					if (
 						selectedMonth < focusedMonth + focusedMonthOffset &&
@@ -69,22 +67,53 @@
 					if (selectedMonth === focusedMonth + focusedMonthOffset) {
 						return selectedDay <= day + 1;
 					}
-					if (secondSelectedMonth === focusedMonth) {
+					if (secondSelectedMonth === focusedMonth + offset) {
 						return secondSelectedDay >= day + 1;
 					}
 				}
 			} else {
 				return (
-					selectedYear === focusedYear && selectedMonth === focusedMonth && selectedDay === day + 1
+					selectedYear === focusedYear &&
+					selectedMonth === focusedMonth + offset &&
+					selectedDay === day + 1
 				);
 			}
 		}
 
 		return false;
 	};
+	$: handleClick = (day, offset) => {
+		const clickedDate = new Date(`${focusedYear},${focusedMonth + 1 + offset},${day + 1}`);
+		const inputDateString = `${focusedYear}-${(focusedMonth + 1).toString().padStart(2, '0')}-${(
+			day + 1
+		)
+			.toString()
+			.padStart(2, '0')}`;
+		if (!secondSelectedDate && selectedDate && clickedDate >= selectedDate) {
+			secondSelectedDate = clickedDate;
+			if (secondInputDate) {
+				secondInputDate.value = inputDateString;
+			}
+		} else {
+			secondSelectedDate = null;
+			secondInputDate.value = '';
+
+			selectedDate = clickedDate;
+			if (inputDate) {
+				inputDate.value = inputDateString;
+			}
+		}
+	};
 	$: currDays = numDaysInMonth[focusedMonth];
 	$: startOffset = getFirstDayOfWeek(focusedMonth + 1, 1, focusedYear);
 	$: endOffset = 7 - ((startOffset + currDays) % 7);
+	onMount(() => {
+		if (inputDate) {
+			inputDate.value = `${focusedYear}-${(focusedMonth + 1)
+				.toString()
+				.padStart(2, '0')}-${focusedDay.toString().padStart(2, '0')}`;
+		}
+	});
 </script>
 
 <section>
@@ -112,16 +141,18 @@
 				<input
 					bind:this={inputDate}
 					type="date"
-					value={inputDate}
 					on:change={(e) => {
-						inputDate = e.target?.value;
-						let date = new Date(Date.parse(inputDate.split('-').join()));
-						focusedMonth = date.getMonth();
-
-						if (secondSelectedDate && secondSelectedDate < date) {
-							secondSelectedDate = null;
+						let inputDate = e.target?.value;
+						let date = new Date(inputDate.split('-').join());
+						if (!isNaN(date)) {
+							focusedMonth = date.getMonth();
+							focusedYear = date.getFullYear();
+							if (secondSelectedDate && secondSelectedDate < date) {
+								secondSelectedDate = null;
+								secondInputDate.value = '';
+							}
+							selectedDate = date;
 						}
-						selectedDate = date;
 					}}
 				/>
 			</div>
@@ -147,16 +178,22 @@
 					</div>
 				{/if}
 				<input
+					bind:this={secondInputDate}
 					type="date"
-					value={secondInputDate}
 					on:change={(e) => {
-						secondInputDate = e.target?.value;
-						let date = new Date(Date.parse(secondInputDate.split('-').join()));
-						if (!isNaN(date)) {
+						let input = e.target?.value;
+						let splitDate = input.split('-');
+						let date = new Date(splitDate.join());
+
+						if (!isNaN(date) && splitDate[0] > 1970) {
 							if (selectedDate && selectedDate > date) {
 								selectedDate = null;
+								if (inputDate) {
+									inputDate.value = '';
+								}
 							}
 							focusedMonth = date.getMonth();
+							focusedYear = date.getFullYear();
 							secondSelectedDate = date;
 						}
 					}}
@@ -176,13 +213,11 @@
 			focusedYear = date.getFullYear();
 		}}>Today</button
 	>
-
 	<button
 		on:click={() => {
 			focusedYear++;
 		}}>{`>>`}</button
 	>
-
 	<div class="month_navigation">
 		<button
 			on:click={() => {
@@ -209,10 +244,22 @@
 
 	<header>
 		{#each daysOfWeek as dayName}
-			<h3>{dayName.slice(0, 3)}</h3>
+			<h3>{dayName.slice(0, 1)}</h3>
 		{/each}
 		{#each Array(startOffset).fill(0) as _, day}
-			<div class="outside month">
+			<div
+				role="cell"
+				tabindex="0"
+				on:keyup={() => {}}
+				on:click={() =>
+					handleClick(numDaysInMonth[focusedMonth ? focusedMonth - 1 : 11] - startOffset + day, -1)}
+				class:active={isActive(
+					numDaysInMonth[focusedMonth ? focusedMonth - 1 : 11] - startOffset + day,
+					-1
+				)}
+				class:month={true}
+				class:outside={true}
+			>
 				{numDaysInMonth[focusedMonth ? focusedMonth - 1 : 11] - startOffset + day + 1}
 			</div>
 		{/each}
@@ -220,40 +267,25 @@
 			<div
 				role="cell"
 				tabindex="0"
-				on:mousedown={() => {
-					isDragging = true;
-					const clickedDate = new Date(Date.parse(`${focusedYear},${focusedMonth + 1},${day + 1}`));
-					if (!secondSelectedDate && selectedDate && clickedDate >= selectedDate) {
-						secondSelectedDate = clickedDate;
-					} else {
-						secondSelectedDate = null;
-						selectedDate = clickedDate;
-					}
-				}}
+				on:click={() => handleClick(day, 0)}
 				on:keydown={() => {}}
-				on:mouseup={() => {
-					isDragging = false;
-				}}
-				on:mouseenter={() => {
-					if (isDragging) {
-						const clickedDate = new Date(
-							Date.parse(`${focusedYear},${focusedMonth + 1},${day + 1}`)
-						);
-						if (selectedDate && clickedDate > selectedDate) {
-							secondSelectedDate = clickedDate;
-						} else {
-							secondSelectedDate = null;
-							selectedDate = clickedDate;
-						}
-					}
-				}}
-				class="{isActive(day) ? 'active' : 'inside'} month"
+				class="{isActive(day, 0) ? 'active' : 'inside'} month"
 			>
 				{day + 1}
 			</div>
 		{/each}
 		{#each Array(currDays + startOffset > 34 ? endOffset : endOffset + 7).fill(0) as _, day}
-			<div class="outside month">{day + 1}</div>
+			<div
+				role="cell"
+				tabindex="0"
+				on:click={() => handleClick(day, 1)}
+				on:keyup={() => {}}
+				class:month={true}
+				class:outside={true}
+				class:active={isActive(day, 1)}
+			>
+				{day + 1}
+			</div>
 		{/each}
 	</header>
 </section>
@@ -262,17 +294,29 @@
 	.month_navigation {
 		display: flex;
 		justify-content: center;
-		gap: 24px;
+		align-items: center;
 	}
 	.month_navigation > h1 {
 		width: 250px;
 		max-width: 250px;
 	}
 	.month_navigation > button {
-		flex: 1;
+		aspect-ratio: 1;
+		border-radius: 50%;
+		width: 50px;
+		height: 50px;
+		background-color: transparent;
+		box-shadow: 0px 0px 3px 1px rgb(5, 5, 40);
+	}
+	.month_navigation > button:hover {
+		cursor: pointer;
+		box-shadow: 0px 0px 10px 4px rgb(5, 5, 40);
 	}
 	.selection_wrapper {
 		display: flex;
+		flex-direction: column;
+		gap: 24px;
+		align-items: center;
 	}
 	section {
 		background-color: white;
@@ -289,28 +333,27 @@
 		display: grid;
 		grid-template-columns: repeat(7, 1fr);
 		text-align: center;
-		min-width: 70px;
+		min-width: 50px;
 	}
 
 	.month {
 		aspect-ratio: 1;
 		text-align: start;
 		padding: 10px;
-		border: 1px solid rgb(138, 97, 97);
+		border: 1px solid rgba(138, 97, 97, 0.291);
 	}
 	.active {
 		background-color: rgb(112, 137, 173);
 	}
 	.month:hover {
-		opacity: 0.6;
+		opacity: 0.8;
 	}
 	.inside {
 		background-color: antiquewhite;
 	}
 
 	.outside {
-		background-color: whitesmoke;
-		opacity: 0.4;
+		opacity: 0.5;
 	}
 
 	.selected_date_container {
@@ -326,7 +369,6 @@
 	.date {
 		width: 88px;
 		border-radius: 8px;
-		position: absolute;
 		z-index: 0;
 	}
 	.date > p:nth-child(odd) {
@@ -351,23 +393,5 @@
 	.date > p:last-child {
 		border-bottom-left-radius: inherit;
 		border-bottom-right-radius: inherit;
-	}
-	input[type='date'] {
-		width: 88px;
-		z-index: 100;
-		background-color: transparent;
-		border: none;
-	}
-
-	input[type='date']:focus {
-		border: none;
-	}
-	input[type='date']::-webkit-calendar-picker-indicator {
-		background: transparent;
-		bottom: 0;
-		color: transparent;
-		cursor: pointer;
-		height: 120px;
-		width: 100%;
 	}
 </style>
