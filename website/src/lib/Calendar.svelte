@@ -1,21 +1,5 @@
 <script lang="ts">
-	const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-	const monthNames = [
-		'January',
-		'February',
-		'March',
-		'April',
-		'May',
-		'June',
-		'July',
-		'August',
-		'September',
-		'October',
-		'November',
-		'December'
-	];
-	const numDaysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
+	import { monthNames, daysOfWeek, numDaysInMonth } from './Utils';
 	// Zeller's Congruence formula to get the first day of month
 	function getFirstDayOfWeek(month: number, day: number, year: number) {
 		if (month < 3) {
@@ -45,51 +29,55 @@
 	let focusedMonth = date.getMonth();
 	let focusedYear = date.getFullYear();
 	let isDragging = false;
-	export let selectedDate = new Date(
+	let selectedDate: Date | null = new Date(
 		Date.parse(`${focusedYear},${focusedMonth + 1},${focusedDay}`)
 	);
-	export let secondSelectedDate: Date | null = null;
+	let secondSelectedDate: Date | null = null;
+	let inputDate: string | null = null;
+	let secondInputDate: string | null = null;
 	$: isActive = (day: number) => {
-		let selectedYear = selectedDate.getFullYear();
-		let selectedMonth = selectedDate.getMonth();
-		let selectedDay = selectedDate.getDate();
-		if (secondSelectedDate) {
-			let secondSelectedYear = secondSelectedDate.getFullYear();
-			let secondSelectedMonth = secondSelectedDate.getMonth();
-			let secondSelectedDay = secondSelectedDate.getDate();
-
-			if (
-				selectedMonth == focusedMonth &&
-				selectedYear == focusedYear &&
-				secondSelectedMonth == focusedMonth &&
-				secondSelectedYear == focusedYear
-			) {
-				let predicate = selectedDay <= day + 1 && secondSelectedDay >= day + 1;
-				return predicate;
-			}
-
-			if (selectedYear <= focusedYear && secondSelectedYear >= focusedYear) {
-				const monthOffset = (secondSelectedYear - selectedYear) * 12;
-				const focusedMonthOffset = (focusedYear - selectedYear) * 12;
+		if (selectedDate) {
+			let selectedYear = selectedDate.getFullYear();
+			let selectedMonth = selectedDate.getMonth();
+			let selectedDay = selectedDate.getDate();
+			if (secondSelectedDate) {
+				let secondSelectedYear = secondSelectedDate.getFullYear();
+				let secondSelectedMonth = secondSelectedDate.getMonth();
+				let secondSelectedDay = secondSelectedDate.getDate();
 
 				if (
-					selectedMonth < focusedMonth + focusedMonthOffset &&
-					secondSelectedMonth + monthOffset > focusedMonth + focusedMonthOffset
+					selectedMonth == focusedMonth &&
+					selectedYear == focusedYear &&
+					secondSelectedMonth == focusedMonth &&
+					secondSelectedYear == focusedYear
 				) {
-					return true;
+					let predicate = selectedDay <= day + 1 && secondSelectedDay >= day + 1;
+					return predicate;
 				}
 
-				if (selectedMonth === focusedMonth + focusedMonthOffset) {
-					return selectedDay <= day + 1;
+				if (selectedYear <= focusedYear && secondSelectedYear >= focusedYear) {
+					const monthOffset = (secondSelectedYear - selectedYear) * 12;
+					const focusedMonthOffset = (focusedYear - selectedYear) * 12;
+
+					if (
+						selectedMonth < focusedMonth + focusedMonthOffset &&
+						secondSelectedMonth + monthOffset > focusedMonth + focusedMonthOffset
+					) {
+						return true;
+					}
+
+					if (selectedMonth === focusedMonth + focusedMonthOffset) {
+						return selectedDay <= day + 1;
+					}
+					if (secondSelectedMonth === focusedMonth) {
+						return secondSelectedDay >= day + 1;
+					}
 				}
-				if (secondSelectedMonth === focusedMonth) {
-					return secondSelectedDay >= day + 1;
-				}
+			} else {
+				return (
+					selectedYear === focusedYear && selectedMonth === focusedMonth && selectedDay === day + 1
+				);
 			}
-		} else {
-			return (
-				selectedYear === focusedYear && selectedMonth === focusedMonth && selectedDay === day + 1
-			);
 		}
 
 		return false;
@@ -100,21 +88,86 @@
 </script>
 
 <section>
-	<h1>{monthNames[focusedMonth] + ' ' + focusedYear}</h1>
+	<div class="selected_date_container">
+		<div>
+			<h1>Arriving</h1>
+			<div class="selection_wrapper">
+				{#if selectedDate}
+					<div class="selected date">
+						<p>{selectedDate.getFullYear()}</p>
+
+						<p>{selectedDate.getDate()}</p>
+
+						<p>{monthNames[selectedDate.getMonth()].slice(0, 3).toUpperCase()}</p>
+					</div>
+				{:else}
+					<div class="unselected date">
+						<p>----</p>
+
+						<p>--</p>
+
+						<p>---</p>
+					</div>
+				{/if}
+				<input
+					bind:this={inputDate}
+					type="date"
+					value={inputDate}
+					on:change={(e) => {
+						inputDate = e.target?.value;
+						let date = new Date(Date.parse(inputDate.split('-').join()));
+						focusedMonth = date.getMonth();
+
+						if (secondSelectedDate && secondSelectedDate < date) {
+							secondSelectedDate = null;
+						}
+						selectedDate = date;
+					}}
+				/>
+			</div>
+		</div>
+		<div>
+			<h1>Departing</h1>
+			<div class="selection_wrapper">
+				{#if secondSelectedDate}
+					<div class="selected date">
+						<p>{secondSelectedDate.getFullYear()}</p>
+
+						<p>{secondSelectedDate.getDate()}</p>
+
+						<p>{monthNames[secondSelectedDate.getMonth()].slice(0, 3).toUpperCase()}</p>
+					</div>
+				{:else}
+					<div class="unselected date">
+						<p>----</p>
+
+						<p>--</p>
+
+						<p>---</p>
+					</div>
+				{/if}
+				<input
+					type="date"
+					value={secondInputDate}
+					on:change={(e) => {
+						secondInputDate = e.target?.value;
+						let date = new Date(Date.parse(secondInputDate.split('-').join()));
+						if (!isNaN(date)) {
+							if (selectedDate && selectedDate > date) {
+								selectedDate = null;
+							}
+							focusedMonth = date.getMonth();
+							secondSelectedDate = date;
+						}
+					}}
+				/>
+			</div>
+		</div>
+	</div>
 	<button
 		on:click={() => {
 			focusedYear--;
 		}}>{`<<`}</button
-	>
-	<button
-		on:click={() => {
-			if (focusedMonth < 1) {
-				focusedMonth = 11;
-				focusedYear--;
-			} else {
-				focusedMonth--;
-			}
-		}}>{`<`}</button
 	>
 	<button
 		on:click={() => {
@@ -123,24 +176,40 @@
 			focusedYear = date.getFullYear();
 		}}>Today</button
 	>
-	<button
-		on:click={() => {
-			if (focusedMonth > 10) {
-				focusedMonth = 0;
-				focusedYear++;
-			} else {
-				focusedMonth++;
-			}
-		}}>{`>`}</button
-	>
+
 	<button
 		on:click={() => {
 			focusedYear++;
 		}}>{`>>`}</button
 	>
+
+	<div class="month_navigation">
+		<button
+			on:click={() => {
+				if (focusedMonth < 1) {
+					focusedMonth = 11;
+					focusedYear--;
+				} else {
+					focusedMonth--;
+				}
+			}}>{`<`}</button
+		>
+		<h1>{monthNames[focusedMonth] + ' ' + focusedYear}</h1>
+		<button
+			on:click={() => {
+				if (focusedMonth > 10) {
+					focusedMonth = 0;
+					focusedYear++;
+				} else {
+					focusedMonth++;
+				}
+			}}>{`>`}</button
+		>
+	</div>
+
 	<header>
 		{#each daysOfWeek as dayName}
-			<h3>{dayName}</h3>
+			<h3>{dayName.slice(0, 3)}</h3>
 		{/each}
 		{#each Array(startOffset).fill(0) as _, day}
 			<div class="outside month">
@@ -154,7 +223,7 @@
 				on:mousedown={() => {
 					isDragging = true;
 					const clickedDate = new Date(Date.parse(`${focusedYear},${focusedMonth + 1},${day + 1}`));
-					if (!secondSelectedDate && clickedDate > selectedDate) {
+					if (!secondSelectedDate && selectedDate && clickedDate >= selectedDate) {
 						secondSelectedDate = clickedDate;
 					} else {
 						secondSelectedDate = null;
@@ -170,7 +239,7 @@
 						const clickedDate = new Date(
 							Date.parse(`${focusedYear},${focusedMonth + 1},${day + 1}`)
 						);
-						if (clickedDate > selectedDate) {
+						if (selectedDate && clickedDate > selectedDate) {
 							secondSelectedDate = clickedDate;
 						} else {
 							secondSelectedDate = null;
@@ -190,6 +259,21 @@
 </section>
 
 <style>
+	.month_navigation {
+		display: flex;
+		justify-content: center;
+		gap: 24px;
+	}
+	.month_navigation > h1 {
+		width: 250px;
+		max-width: 250px;
+	}
+	.month_navigation > button {
+		flex: 1;
+	}
+	.selection_wrapper {
+		display: flex;
+	}
 	section {
 		background-color: white;
 		width: 100%;
@@ -217,7 +301,7 @@
 	.active {
 		background-color: rgb(112, 137, 173);
 	}
-	.inside:hover {
+	.month:hover {
 		opacity: 0.6;
 	}
 	.inside {
@@ -227,5 +311,63 @@
 	.outside {
 		background-color: whitesmoke;
 		opacity: 0.4;
+	}
+
+	.selected_date_container {
+		display: flex;
+		justify-content: space-around;
+		gap: 10px;
+	}
+	.selected_date_container > div {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+	.date {
+		width: 88px;
+		border-radius: 8px;
+		position: absolute;
+		z-index: 0;
+	}
+	.date > p:nth-child(odd) {
+		background-color: rgb(168, 0, 0);
+		margin: 0px;
+		padding: 2px;
+		color: white;
+		font-weight: 600;
+	}
+	.date > p:nth-child(even) {
+		background-color: #fefef1;
+		margin: 0px;
+		padding-top: 16px;
+		padding-bottom: 16px;
+		color: black;
+		font-size: 2rem;
+	}
+	.date > p:first-child {
+		border-top-left-radius: inherit;
+		border-top-right-radius: inherit;
+	}
+	.date > p:last-child {
+		border-bottom-left-radius: inherit;
+		border-bottom-right-radius: inherit;
+	}
+	input[type='date'] {
+		width: 88px;
+		z-index: 100;
+		background-color: transparent;
+		border: none;
+	}
+
+	input[type='date']:focus {
+		border: none;
+	}
+	input[type='date']::-webkit-calendar-picker-indicator {
+		background: transparent;
+		bottom: 0;
+		color: transparent;
+		cursor: pointer;
+		height: 120px;
+		width: 100%;
 	}
 </style>
