@@ -38,18 +38,15 @@
 	let secondInputDate: HTMLInputElement;
 	$: isActive = (day: number, offset) => {
 		if (selectedDate) {
+			// 0 - none
+			// 1 - selected date
+			// 2 - between selected dates
 			let selectedYear = selectedDate.getFullYear();
 			let selectedMonth = selectedDate.getMonth();
 			let selectedDay = selectedDate.getDate();
-			let focusedMonthWithOffset = focusedMonth + offset;
+			let focusedMonthWithOffset = focusedMonth + offset % 12;
 			let yearOffset = 0;
-			if (focusedMonthWithOffset < 0) {
-				focusedMonthWithOffset = 11;
-				yearOffset = -1;
-			} else if (focusedMonthWithOffset > 11) {
-				focusedMonthWithOffset = 0;
-				yearOffset = 1;
-			}
+
 			if (secondSelectedDate) {
 				let secondSelectedYear = secondSelectedDate.getFullYear();
 				let secondSelectedMonth = secondSelectedDate.getMonth();
@@ -61,8 +58,14 @@
 					secondSelectedMonth == focusedMonthWithOffset &&
 					secondSelectedYear == focusedYear + yearOffset
 				) {
-					let predicate = selectedDay <= day + 1 && secondSelectedDay >= day + 1;
-					return predicate;
+					if (selectedDay < day + 1 && secondSelectedDay > day + 1) {
+						return 2;
+					} else if (selectedDay === day + 1 || secondSelectedDay === day + 1) {
+						return 1;
+					}
+					else {
+						return 0
+					}
 				}
 
 				if (
@@ -76,26 +79,36 @@
 						selectedMonth < focusedMonthWithOffset + focusedMonthOffset &&
 						secondSelectedMonth + monthOffset > focusedMonthWithOffset + focusedMonthOffset
 					) {
-						return true;
+						return 2;
 					}
 
-					if (selectedMonth === focusedMonthWithOffset) {
-						return selectedDay <= day + 1;
+					if (selectedMonth === focusedMonthWithOffset  + focusedMonthOffset) {
+						if (selectedDay < day + 1) {
+							return 2;
+						} else if (selectedDay == day + 1) {
+							return 1;
+						}
 					}
-					if (secondSelectedMonth === focusedMonthWithOffset) {
-						return secondSelectedDay >= day + 1;
+					if (secondSelectedMonth + monthOffset === focusedMonthWithOffset + focusedMonthOffset) {
+						if (secondSelectedDay > day + 1) {
+							return 2;
+						} else if (secondSelectedDay == day + 1) {
+							return 1;
+						}
 					}
 				}
 			} else {
-				return (
+				if (
 					selectedYear === focusedYear + yearOffset &&
 					selectedMonth === focusedMonthWithOffset &&
 					selectedDay === day + 1
-				);
+				) {
+					return 1;
+				}
 			}
 		}
 
-		return false;
+		return 0;
 	};
 	$: handleClick = (day, offset) => {
 		let focusedMonthWithOffset = focusedMonth + offset;
@@ -123,9 +136,21 @@
 			}
 		}
 	};
-	$: currDays = numDaysInMonth[focusedMonth];
-	$: startOffset = getFirstDayOfWeek(focusedMonth + 1, 1, focusedYear);
-	$: endOffset = 7 - ((startOffset + currDays) % 7);
+	function getMonthDays(focusedMonth) {
+		return numDaysInMonth(focusedYear)[
+			focusedMonth >= 12 ? focusedMonth - 12 : focusedMonth < 0 ? focusedMonth + 12 : focusedMonth
+		];
+	}
+	function startOffset(focusedMonth) {
+		return getFirstDayOfWeek(
+			focusedMonth >= 12 ? 0 : focusedMonth < 0 ? 11 : focusedMonth + 1,
+			1,
+			focusedYear
+		);
+	}
+	function endOffset(focusedMonth) {
+		return 7 - ((startOffset(focusedMonth) + getMonthDays(focusedMonth)) % 7);
+	}
 	onMount(() => {
 		if (inputDate) {
 			inputDate.value = `${focusedYear}-${(focusedMonth + 1)
@@ -138,231 +163,252 @@
 <section>
 	<div>
 		<div>
-			<div class="month_navigation">
-				{#if selectingMonth || selectingYear}
-					<div class="button_container">
-						{#if selectingMonth}
-							{#each monthNames as month, i}
-								<button
-									class:focused_button={i === focusedMonth}
-									on:click={() => {
-										(focusedMonth = i), (selectingMonth = false);
-									}}>{month.slice(0, 3).toUpperCase()}</button
-								>
-							{/each}
-						{/if}
+			<div class="calendar_container">
+				<div class="calendar_wrapper">
+					<div class="month_navigation">
+						{#if selectingMonth || selectingYear}
+							<div class="button_container">
+								{#if selectingMonth}
+									{#each monthNames as month, i}
+										<button
+											class:focused_button={i === focusedMonth}
+											on:click={() => {
+												(focusedMonth = i), (selectingMonth = false);
+											}}>{month.slice(0, 3).toUpperCase()}</button
+										>
+									{/each}
+								{/if}
 
-						{#if selectingYear}
+								{#if selectingYear}
+									<button
+										on:click={() => {
+											focusedYear--;
+										}}>{`<`}</button
+									>
+									{#each Array(8).fill(0) as month, i}
+										<button
+											class:focused_button={focusedYear - 3 + i === focusedYear}
+											on:click={() => {
+												(focusedYear = focusedYear - 3 + i), (selectingYear = false);
+											}}>{focusedYear - 3 + i}</button
+										>
+									{/each}
+									<button
+										on:click={() => {
+											focusedYear++;
+										}}>{`>`}</button
+									>
+								{/if}
+							</div>
+						{:else}
 							<button
 								on:click={() => {
-									focusedYear--;
+									if (focusedMonth < 1) {
+										focusedMonth = 11;
+										focusedYear--;
+									} else {
+										focusedMonth--;
+									}
 								}}>{`<`}</button
 							>
-							{#each Array(8).fill(0) as month, i}
-								<button
-									class:focused_button={focusedYear - 3 + i === focusedYear}
-									on:click={() => {
-										(focusedYear = focusedYear - 3 + i), (selectingYear = false);
-									}}>{focusedYear - 3 + i}</button
+							<h1>
+								{monthNames[focusedMonth] + ' ' + focusedYear}
+							</h1>
+						{/if}
+					</div>
+					<header>
+						{#each daysOfWeek as dayName}
+							<h3>{dayName.slice(0, 1)}</h3>
+						{/each}
+						{#each Array(startOffset(focusedMonth)).fill(0) as _, day}
+							<div class:month={true} />
+						{/each}
+						{#each Array(getMonthDays(focusedMonth)).fill(0) as _, day}
+							{#if isActive(day, 0) > 0}
+								{#if day === 0 && isActive(day, 0) === 2}
+									<span
+										role="cell"
+										tabindex="0"
+										on:click={() => handleClick(day, 0)}
+										on:keydown={() => {}}
+										class:month={true}
+										class:invert={true}
+									>
+										<p>
+											{day + 1}
+										</p>
+									</span>
+								{:else if day === getMonthDays(focusedMonth) - 1  && isActive(day, 0) === 2}
+									<span
+										role="cell"
+										tabindex="0"
+										on:click={() => handleClick(day, 0)}
+										on:keydown={() => {}}
+										class:month={true}
+										class:invert-end={true}
+									>
+										<p>
+											{day + 1}
+										</p>
+									</span>
+								{:else}
+									<span
+										role="cell"
+										tabindex="0"
+										on:click={() => handleClick(day, 0)}
+										on:keydown={() => {}}
+										class:month={true}
+										class:active={true}
+									>
+										<p>
+											{day + 1}
+										</p>
+									</span>
+								{/if}
+							{:else}
+								<div
+									role="cell"
+									tabindex="0"
+									on:click={() => handleClick(day, 0)}
+									on:keydown={() => {}}
+									class:month={true}
+									class:inside={true}
 								>
-							{/each}
+									<p>
+										{day + 1}
+									</p>
+								</div>
+							{/if}
+						{/each}
+						{#each Array(getMonthDays(focusedMonth) + startOffset(focusedMonth) > 34 ? endOffset(focusedMonth) : endOffset(focusedMonth) + 7).fill(0) as _, day}
+							<div class:month={true} />
+						{/each}
+					</header>
+				</div>
+				<div class="calendar_wrapper">
+					<div class="month_navigation">
+						{#if selectingMonth || selectingYear}
+							<div class="button_container">
+								{#if selectingMonth}
+									{#each monthNames as month, i}
+										<button
+											class:focused_button={i === focusedMonth}
+											on:click={() => {
+												(focusedMonth = i), (selectingMonth = false);
+											}}>{month.slice(0, 3).toUpperCase()}</button
+										>
+									{/each}
+								{/if}
+
+								{#if selectingYear}
+									<button
+										on:click={() => {
+											focusedYear--;
+										}}>{`<`}</button
+									>
+									{#each Array(8).fill(0) as month, i}
+										<button
+											class:focused_button={focusedYear - 3 + i === focusedYear}
+											on:click={() => {
+												(focusedYear = focusedYear - 3 + i), (selectingYear = false);
+											}}>{focusedYear - 3 + i}</button
+										>
+									{/each}
+									<button
+										on:click={() => {
+											focusedYear++;
+										}}>{`>`}</button
+									>
+								{/if}
+							</div>
+						{:else}
+							<h1>
+								{monthNames[(focusedMonth + 1) % 12] +
+									' ' +
+									(focusedMonth === 11 ? focusedYear + 1 : focusedYear)}
+							</h1>
 							<button
 								on:click={() => {
-									focusedYear++;
+									if (focusedMonth > 10) {
+										focusedMonth = 0;
+										focusedYear++;
+									} else {
+										focusedMonth++;
+									}
 								}}>{`>`}</button
 							>
 						{/if}
 					</div>
-				{:else}
-					<button
-						on:click={() => {
-							if (focusedMonth < 1) {
-								focusedMonth = 11;
-								focusedYear--;
-							} else {
-								focusedMonth--;
-							}
-						}}>{`<`}</button
-					>
-					<h1>
-						<button
-							on:click={() => {
-								selectingMonth = true;
-							}}>{monthNames[focusedMonth]}</button
-						>
-						<button
-							on:click={() => {
-								selectingYear = true;
-							}}
-						>
-							{focusedYear}</button
-						>
-					</h1>
-					<button
-						on:click={() => {
-							if (focusedMonth > 10) {
-								focusedMonth = 0;
-								focusedYear++;
-							} else {
-								focusedMonth++;
-							}
-						}}>{`>`}</button
-					>
-				{/if}
+					<header>
+						{#each daysOfWeek as dayName}
+							<h3>{dayName.slice(0, 1)}</h3>
+						{/each}
+						{#each Array(startOffset(focusedMonth + 1)).fill(0) as _, day}
+							<div class:month={true} />
+						{/each}
+						{#each Array(getMonthDays(focusedMonth + 1)).fill(0) as _, day}
+							{#if isActive(day, 1)}
+								{#if day === 0 && isActive(day, 1) === 2}
+									<span
+										role="cell"
+										tabindex="0"
+										on:click={() => handleClick(day, 1)}
+										on:keydown={() => {}}
+										class:month={true}
+										class:invert={true}
+									>
+										<p>
+											{day + 1}
+										</p>
+									</span>
+								{:else if day === getMonthDays(focusedMonth + 1) - 1 && isActive(day, 1) === 2}
+									<span
+										role="cell"
+										tabindex="0"
+										on:click={() => handleClick(day, 1)}
+										on:keydown={() => {}}
+										class:month={true}
+										class:invert-end={true}
+									>
+										<p>
+											{day + 1}
+										</p>
+									</span>
+								{:else}
+									<span
+										role="cell"
+										tabindex="0"
+										on:click={() => handleClick(day, 1)}
+										on:keydown={() => {}}
+										class:month={true}
+										class:active={true}
+									>
+										<p>
+											{day + 1}
+										</p>
+									</span>
+								{/if}
+							{:else}
+								<div
+									role="cell"
+									tabindex="0"
+									on:click={() => handleClick(day, 1)}
+									on:keydown={() => {}}
+									class:month={true}
+									class:inside={true}
+								>
+									<p>
+										{day + 1}
+									</p>
+								</div>
+							{/if}
+						{/each}
+						{#each Array(getMonthDays(focusedMonth + 1) + startOffset(focusedMonth + 1) > 34 ? endOffset(focusedMonth + 1) : endOffset(focusedMonth + 1) + 7).fill(0) as _, day}
+							<div class:month={true} />
+						{/each}
+					</header>
+				</div>
 			</div>
-
-			<header>
-				{#each daysOfWeek as dayName}
-					<h3>{dayName.slice(0, 1)}</h3>
-				{/each}
-				{#each Array(startOffset).fill(0) as _, day}
-					{#if isActive(numDaysInMonth[focusedMonth ? focusedMonth - 1 : 11] - startOffset + day, -1)}
-						{#if day === 0 && isActive(numDaysInMonth[focusedMonth ? focusedMonth - 1 : 11] - startOffset + day - 1, -1)}
-							<span
-								role="cell"
-								tabindex="0"
-								on:keyup={() => {}}
-								on:click={() =>
-									handleClick(
-										numDaysInMonth[focusedMonth ? focusedMonth - 1 : 11] - startOffset + day,
-										-1
-									)}
-								class:month={true}
-								class:invert={true}
-								class:outside={true}
-							>
-								<p>
-									{numDaysInMonth[focusedMonth ? focusedMonth - 1 : 11] - startOffset + day + 1}
-								</p>
-							</span>
-						{:else}
-							<span
-								role="cell"
-								tabindex="0"
-								on:keyup={() => {}}
-								on:click={() =>
-									handleClick(
-										numDaysInMonth[focusedMonth ? focusedMonth - 1 : 11] - startOffset + day,
-										-1
-									)}
-								class:active={true}
-								class:month={true}
-								class:outside={true}
-							>
-								<p>
-									{numDaysInMonth[focusedMonth ? focusedMonth - 1 : 11] - startOffset + day + 1}
-								</p>
-							</span>{/if}
-					{:else}
-						<div
-							role="cell"
-							tabindex="0"
-							on:keyup={() => {}}
-							on:click={() =>
-								handleClick(
-									numDaysInMonth[focusedMonth ? focusedMonth - 1 : 11] - startOffset + day,
-									-1
-								)}
-							class:month={true}
-							class:outside={true}
-						>
-							<p>
-								{numDaysInMonth[focusedMonth ? focusedMonth - 1 : 11] - startOffset + day + 1}
-							</p>
-						</div>
-					{/if}
-				{/each}
-				{#each Array(currDays).fill(0) as _, day}
-					{#if isActive(day, 0)}
-						{#if !startOffset && day === 0 && isActive(numDaysInMonth[focusedMonth ? focusedMonth - 1 : 11], -1)}
-							<span
-								role="cell"
-								tabindex="0"
-								on:click={() => handleClick(day, 0)}
-								on:keydown={() => {}}
-								class:month={true}
-								class:invert={true}
-							>
-								<p>
-									{day + 1}
-								</p>
-							</span>
-						{:else}
-							<span
-								role="cell"
-								tabindex="0"
-								on:click={() => handleClick(day, 0)}
-								on:keydown={() => {}}
-								class:month={true}
-								class:active={true}
-							>
-								<p>
-									{day + 1}
-								</p>
-							</span>
-						{/if}
-					{:else}
-						<div
-							role="cell"
-							tabindex="0"
-							on:click={() => handleClick(day, 0)}
-							on:keydown={() => {}}
-							class:month={true}
-							class:inside={true}
-						>
-							<p>
-								{day + 1}
-							</p>
-						</div>
-					{/if}
-				{/each}
-				{#each Array(currDays + startOffset > 34 ? endOffset : endOffset + 7).fill(0) as _, day}
-					{#if isActive(day, 1)}
-						{#if day === (currDays + startOffset > 34 ? endOffset - 1 : endOffset + 7 - 1) && isActive(day + 1, 1)}
-							<span
-								role="cell"
-								tabindex="0"
-								on:click={() => handleClick(day, 1)}
-								on:keydown={() => {}}
-								class:month={true}
-								class:invert={true}
-								class:outside={true}
-							>
-								<p>
-									{day + 1}
-								</p>
-							</span>
-						{:else}
-							<span
-								role="cell"
-								tabindex="0"
-								on:click={() => handleClick(day, 1)}
-								on:keydown={() => {}}
-								class:month={true}
-								class:active={true}
-								class:outside={true}
-							>
-								<p>
-									{day + 1}
-								</p>
-							</span>
-						{/if}
-					{:else}
-						<div
-							role="cell"
-							tabindex="0"
-							on:click={() => handleClick(day, 1)}
-							on:keydown={() => {}}
-							class:month={true}
-							class:outside={true}
-						>
-							<p>
-								{day + 1}
-							</p>
-						</div>
-					{/if}
-				{/each}
-			</header>
 		</div>
 		<div class="selected_date_container">
 			<div>
@@ -481,26 +527,30 @@
 		display: flex;
 		flex: 1;
 		gap: 4px;
-		height: 5rem;
 		justify-content: center;
 		align-items: center;
 	}
-
+	.calendar_container {
+		display: flex;
+		gap: 32px;
+	}
 	.button_container > .disabled {
 		opacity: 0.5;
 		pointer-events: none;
 	}
 	.button_container > button {
 		flex: 1;
-		font-size: 1rem;
 		cursor: pointer;
-		height: 3rem;
 		border: 1px solid var(--main-button);
 		background-color: transparent;
 		color: var(--main-button);
 		border-radius: 8px;
 		font-weight: 600;
-		max-height: 5rem;
+	}
+	.calendar_wrapper {
+		display: flex;
+		justify-content: center;
+		flex-direction: column;
 	}
 	.button_container > .focused_button {
 		border-color: red;
@@ -513,7 +563,6 @@
 		color: white;
 		border-radius: 8px;
 		font-weight: 600;
-		max-height: 5rem;
 		background-color: var(--confirm-button);
 	}
 	button:hover {
@@ -529,13 +578,9 @@
 		border-radius: 8px;
 		font-weight: 600;
 		color: white;
-		height: 5rem;
-		font-size: 2.5rem;
 	}
 	.month_navigation > h1 > button:first-child {
 		flex: 1 1 70%;
-		max-width: 20rem;
-		min-width: 20rem;
 	}
 	.month_navigation > h1 > button:last-child {
 		flex: 1 1 30%;
@@ -546,8 +591,6 @@
 		align-items: center;
 		flex: 1;
 		gap: 8px;
-		max-width: 30rem;
-		min-width: 40rem;
 		width: 100%;
 	}
 
@@ -560,6 +603,7 @@
 		padding: 0px;
 		margin: 0px;
 		gap: 8px;
+		font-size: medium;
 	}
 
 	.month_navigation > button {
@@ -569,8 +613,6 @@
 		border-radius: 8px;
 		font-weight: 800;
 		color: var(--main-button);
-		width: 5rem;
-		height: 5rem;
 	}
 
 	.selection_wrapper {
@@ -595,33 +637,41 @@
 	}
 	:global([class~='active']:last-of-type) {
 		background-color: rgb(112, 137, 173);
-		border-top-right-radius: 60%;
-		border-bottom-right-radius: 60%;
+		border-top-right-radius: 50%;
+		border-bottom-right-radius: 50%;
 	}
 	:global([class~='active']:first-of-type) {
 		background-color: rgb(112, 137, 173);
-		border-top-left-radius: 60%;
-		border-bottom-left-radius: 60%;
+		border-top-left-radius: 50%;
+		border-bottom-left-radius: 50%;
 	}
 	:global([class~='active']:last-of-type) > p {
-		background-color: rgb(0, 56, 133);
+		background-color: var(--main-button);
 	}
 	:global([class~='active']:first-of-type) > p {
-		background-color: rgb(0, 56, 133);
+		background-color: var(--main-button);
 	}
 	.invert {
-		background-color: rgb(112, 137, 173) !important;
+		background: linear-gradient(90deg, transparent, var(--active-color) 50%) !important;
 	}
 	.invert > p {
 		background-color: none !important;
 		border: none !important;
 	}
+
+	.invert-end {
+		background: linear-gradient(90deg, var(--active-color) 50%, transparent) !important;
+	}
+	.invert-end > p {
+		background-color: none !important;
+		border: none !important;
+	}
 	header {
-		padding-top: 40px;
+		padding-top: 16px;
 		display: grid;
 		grid-template-columns: repeat(7, 1fr);
 		text-align: center;
-		background-color: gray;
+		background-color: var(--calendar-color);
 	}
 
 	header > h3 {
@@ -633,15 +683,19 @@
 		cursor: pointer;
 		aspect-ratio: 1;
 		display: flex;
+		flex: 1;
 		justify-content: center;
 		align-items: center;
 		background-color: transparent;
-		min-width: 50px;
-		max-width: 100px;
-		min-height: 50px;
-		max-height: 100px;
+		margin-top: 4px;
+		margin-bottom: 4px;
+		padding: 4px;
+		min-height: 20px;
+		min-width: 20px;
 	}
 	.month > p {
+		font-size: 12px;
+		font-weight: 600;
 		margin: 0;
 		display: flex;
 		flex: 1;
@@ -652,6 +706,9 @@
 	}
 	.month:hover > p {
 		border: 1px solid black;
+		border-radius: 50%;
+		min-height: 20px;
+		min-width: 20px;
 	}
 	.active > p {
 		display: flex;
@@ -662,7 +719,7 @@
 		align-items: center;
 	}
 	.active {
-		background-color: rgb(112, 137, 173);
+		background-color: var(--active-color);
 	}
 
 	.inside {

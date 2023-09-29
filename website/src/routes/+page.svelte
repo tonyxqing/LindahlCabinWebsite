@@ -39,7 +39,8 @@
 		:global(:root) {
 			--main-button: rgb(94, 124, 220);
 			--confirm-button: rgb(230, 215, 0);
-
+            --calendar-color: #2a2a2a;
+            --active-color: #050508;
 			color: #dfe1e2;
 			background-color: #02041c;
 		}

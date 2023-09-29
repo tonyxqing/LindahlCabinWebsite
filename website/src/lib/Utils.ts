@@ -13,7 +13,7 @@ export const monthNames = [
     'November',
     'December'
 ];
-export const numDaysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+export const numDaysInMonth = (year) => [31, (year % 400 === 0 || year % 100 !== 0 && year % 4 === 0) ? 29:28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 export function isEmpty(obj) {
     console.log(obj);
