@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { monthNames, daysOfWeek, numDaysInMonth } from './Utils';
 	import { fly } from 'svelte/transition';
+	import FaArrowRight from 'svelte-icons/fa/FaArrowRight.svelte';
 	// Zeller's Congruence formula to get the first day of month
 	function getFirstDayOfWeek(month: number, day: number, year: number) {
 		if (month < 3) {
@@ -32,11 +33,11 @@
 	let focusedDay = date.getDate();
 	let focusedMonth = date.getMonth();
 	let focusedYear = date.getFullYear();
-	let selectedDate: Date | null = new Date(`${focusedYear},${focusedMonth + 1},${focusedDay}`);
-	let secondSelectedDate: Date | null = null;
+	export let selectedDate: Date | null = new Date(focusedYear, focusedMonth, focusedDay);
+	export let secondSelectedDate: Date | null = null;
 	let inputDate: HTMLInputElement;
 	let secondInputDate: HTMLInputElement;
-	$: isActive = (day: number, offset) => {
+	$: isActive = (day: number, offset: number) => {
 		if (selectedDate) {
 			// 0 - none
 			// 1 - selected date
@@ -44,7 +45,7 @@
 			let selectedYear = selectedDate.getFullYear();
 			let selectedMonth = selectedDate.getMonth();
 			let selectedDay = selectedDate.getDate();
-			let focusedMonthWithOffset = focusedMonth + offset % 12;
+			let focusedMonthWithOffset = focusedMonth + (offset % 12);
 			let yearOffset = 0;
 
 			if (secondSelectedDate) {
@@ -62,9 +63,8 @@
 						return 2;
 					} else if (selectedDay === day + 1 || secondSelectedDay === day + 1) {
 						return 1;
-					}
-					else {
-						return 0
+					} else {
+						return 0;
 					}
 				}
 
@@ -82,7 +82,7 @@
 						return 2;
 					}
 
-					if (selectedMonth === focusedMonthWithOffset  + focusedMonthOffset) {
+					if (selectedMonth === focusedMonthWithOffset + focusedMonthOffset) {
 						if (selectedDay < day + 1) {
 							return 2;
 						} else if (selectedDay == day + 1) {
@@ -110,14 +110,12 @@
 
 		return 0;
 	};
-	$: handleClick = (day, offset) => {
+	$: handleClick = (day: number, offset: number) => {
 		let focusedMonthWithOffset = focusedMonth + offset;
 		let focusedMonthOffset =
 			focusedMonthWithOffset >= 12 ? 0 : focusedMonthWithOffset < 0 ? 11 : focusedMonthWithOffset;
 		let yearOffset = focusedMonthWithOffset >= 12 ? 1 : focusedMonthWithOffset < 0 ? -1 : 0;
-		const clickedDate = new Date(
-			`${focusedYear + yearOffset},${focusedMonthOffset + 1},${day + 1}`
-		);
+		const clickedDate = new Date(focusedYear + yearOffset, focusedMonthOffset, day + 1);
 		const inputDateString = `${focusedYear + yearOffset}-${(focusedMonthOffset + 1)
 			.toString()
 			.padStart(2, '0')}-${(day + 1).toString().padStart(2, '0')}`;
@@ -136,19 +134,19 @@
 			}
 		}
 	};
-	function getMonthDays(focusedMonth) {
+	function getMonthDays(focusedMonth: number) {
 		return numDaysInMonth(focusedYear)[
 			focusedMonth >= 12 ? focusedMonth - 12 : focusedMonth < 0 ? focusedMonth + 12 : focusedMonth
 		];
 	}
-	function startOffset(focusedMonth) {
+	function startOffset(focusedMonth: number) {
 		return getFirstDayOfWeek(
 			focusedMonth >= 12 ? 0 : focusedMonth < 0 ? 11 : focusedMonth + 1,
 			1,
 			focusedYear
 		);
 	}
-	function endOffset(focusedMonth) {
+	function endOffset(focusedMonth: number) {
 		return 7 - ((startOffset(focusedMonth) + getMonthDays(focusedMonth)) % 7);
 	}
 	onMount(() => {
@@ -162,66 +160,150 @@
 
 <section>
 	<div>
+		<div class="selected_date_container">
+			<div>
+				<div class="selection_wrapper">
+					{#if selectedDate}
+						<div
+							tabindex="0"
+							role="button"
+							on:click={() => {
+								if (selectedDate) {
+									focusedMonth = selectedDate.getMonth();
+									focusedYear = selectedDate.getFullYear();
+								}
+							}}
+							on:keypress={() => {}}
+							class="selected date"
+						>
+							<p>{monthNames[selectedDate.getMonth()].slice(0, 3).toUpperCase()}</p>
+
+							<p>{selectedDate.getDate()}</p>
+
+							<p>{selectedDate.getFullYear()}</p>
+						</div>
+					{:else}
+						<div class="unselected date">
+							<p>----</p>
+
+							<p>--</p>
+
+							<p>---</p>
+						</div>
+					{/if}
+					<input
+						bind:this={inputDate}
+						type="date"
+						on:change={(e) => {
+							let inputDate = e.target?.value;
+							let splitDate = inputDate.split('-');
+
+							let date = new Date(splitDate[0], splitDate[1] - 1, splitDate[2]);
+							if (!isNaN(date) && splitDate[0] > 1970) {
+								focusedMonth = date.getMonth();
+								focusedYear = date.getFullYear();
+								if (secondSelectedDate && secondSelectedDate < date) {
+									secondSelectedDate = null;
+									secondInputDate.value = '';
+								}
+								selectedDate = date;
+							}
+						}}
+					/>
+				</div>
+			</div>
+			<div class="interval_arrow selection_wrapper">
+				<FaArrowRight />
+			</div>
+			<div>
+				<div class="selection_wrapper">
+					{#if secondSelectedDate}
+						<div
+							role="button"
+							tabindex="0"
+							on:keypress={() => {}}
+							on:click={() => {
+								if (secondSelectedDate) {
+									if (secondSelectedDate.getMonth() === 0) {
+										focusedMonth = 11;
+										focusedYear = secondSelectedDate.getFullYear() - 1;
+									} else {
+										focusedMonth = secondSelectedDate.getMonth() - 1;
+										focusedYear = secondSelectedDate.getFullYear();
+									}
+								}
+							}}
+							class="selected date"
+						>
+							<p>{monthNames[secondSelectedDate.getMonth()].slice(0, 3).toUpperCase()}</p>
+
+							<p>{secondSelectedDate.getDate()}</p>
+
+							<p>{secondSelectedDate.getFullYear()}</p>
+						</div>
+					{:else}
+						<div class="unselected date">
+							<p>----</p>
+
+							<p>--</p>
+
+							<p>---</p>
+						</div>
+					{/if}
+					<input
+						bind:this={secondInputDate}
+						type="date"
+						on:change={(e) => {
+							let input = e.target?.value;
+							let splitDate = input.split('-');
+							let date = new Date(splitDate[0], splitDate[1] - 1, splitDate[2]);
+
+							if (!isNaN(date) && splitDate[0] > 1970) {
+								if (selectedDate && selectedDate > date) {
+									selectedDate = null;
+									if (inputDate) {
+										inputDate.value = '';
+									}
+								}
+								if (date.getMonth() === 0) {
+									focusedMonth = 11;
+									focusedYear = date.getFullYear() - 1;
+								} else {
+									focusedMonth = date.getMonth() - 1;
+									focusedYear = date.getFullYear();
+								}
+
+								secondSelectedDate = date;
+							}
+						}}
+					/>
+				</div>
+			</div>
+		</div>
 		<div>
 			<div class="calendar_container">
 				<div class="calendar_wrapper">
 					<div class="month_navigation">
-						{#if selectingMonth || selectingYear}
-							<div class="button_container">
-								{#if selectingMonth}
-									{#each monthNames as month, i}
-										<button
-											class:focused_button={i === focusedMonth}
-											on:click={() => {
-												(focusedMonth = i), (selectingMonth = false);
-											}}>{month.slice(0, 3).toUpperCase()}</button
-										>
-									{/each}
-								{/if}
-
-								{#if selectingYear}
-									<button
-										on:click={() => {
-											focusedYear--;
-										}}>{`<`}</button
-									>
-									{#each Array(8).fill(0) as month, i}
-										<button
-											class:focused_button={focusedYear - 3 + i === focusedYear}
-											on:click={() => {
-												(focusedYear = focusedYear - 3 + i), (selectingYear = false);
-											}}>{focusedYear - 3 + i}</button
-										>
-									{/each}
-									<button
-										on:click={() => {
-											focusedYear++;
-										}}>{`>`}</button
-									>
-								{/if}
-							</div>
-						{:else}
-							<button
-								on:click={() => {
-									if (focusedMonth < 1) {
-										focusedMonth = 11;
-										focusedYear--;
-									} else {
-										focusedMonth--;
-									}
-								}}>{`<`}</button
-							>
-							<h1>
-								{monthNames[focusedMonth] + ' ' + focusedYear}
-							</h1>
-						{/if}
+						<button
+							on:click={() => {
+								if (focusedMonth < 1) {
+									focusedMonth = 11;
+									focusedYear--;
+								} else {
+									focusedMonth--;
+								}
+							}}>{`<`}</button
+						>
+						<h1>
+							{monthNames[focusedMonth] + ' ' + focusedYear}
+						</h1>
 					</div>
 					<header>
 						{#each daysOfWeek as dayName}
 							<h3>{dayName.slice(0, 1)}</h3>
 						{/each}
 						{#each Array(startOffset(focusedMonth)).fill(0) as _, day}
-							<div class:month={true} />
+							<div class:month={true} class:outside={true} />
 						{/each}
 						{#each Array(getMonthDays(focusedMonth)).fill(0) as _, day}
 							{#if isActive(day, 0) > 0}
@@ -238,7 +320,7 @@
 											{day + 1}
 										</p>
 									</span>
-								{:else if day === getMonthDays(focusedMonth) - 1  && isActive(day, 0) === 2}
+								{:else if day === getMonthDays(focusedMonth) - 1 && isActive(day, 0) === 2}
 									<span
 										role="cell"
 										tabindex="0"
@@ -281,70 +363,34 @@
 							{/if}
 						{/each}
 						{#each Array(getMonthDays(focusedMonth) + startOffset(focusedMonth) > 34 ? endOffset(focusedMonth) : endOffset(focusedMonth) + 7).fill(0) as _, day}
-							<div class:month={true} />
+							<div class:month={true} class:outside={true} />
 						{/each}
 					</header>
 				</div>
 				<div class="calendar_wrapper">
 					<div class="month_navigation">
-						{#if selectingMonth || selectingYear}
-							<div class="button_container">
-								{#if selectingMonth}
-									{#each monthNames as month, i}
-										<button
-											class:focused_button={i === focusedMonth}
-											on:click={() => {
-												(focusedMonth = i), (selectingMonth = false);
-											}}>{month.slice(0, 3).toUpperCase()}</button
-										>
-									{/each}
-								{/if}
-
-								{#if selectingYear}
-									<button
-										on:click={() => {
-											focusedYear--;
-										}}>{`<`}</button
-									>
-									{#each Array(8).fill(0) as month, i}
-										<button
-											class:focused_button={focusedYear - 3 + i === focusedYear}
-											on:click={() => {
-												(focusedYear = focusedYear - 3 + i), (selectingYear = false);
-											}}>{focusedYear - 3 + i}</button
-										>
-									{/each}
-									<button
-										on:click={() => {
-											focusedYear++;
-										}}>{`>`}</button
-									>
-								{/if}
-							</div>
-						{:else}
-							<h1>
-								{monthNames[(focusedMonth + 1) % 12] +
-									' ' +
-									(focusedMonth === 11 ? focusedYear + 1 : focusedYear)}
-							</h1>
-							<button
-								on:click={() => {
-									if (focusedMonth > 10) {
-										focusedMonth = 0;
-										focusedYear++;
-									} else {
-										focusedMonth++;
-									}
-								}}>{`>`}</button
-							>
-						{/if}
+						<h1>
+							{monthNames[(focusedMonth + 1) % 12] +
+								' ' +
+								(focusedMonth === 11 ? focusedYear + 1 : focusedYear)}
+						</h1>
+						<button
+							on:click={() => {
+								if (focusedMonth > 10) {
+									focusedMonth = 0;
+									focusedYear++;
+								} else {
+									focusedMonth++;
+								}
+							}}>{`>`}</button
+						>
 					</div>
 					<header>
 						{#each daysOfWeek as dayName}
 							<h3>{dayName.slice(0, 1)}</h3>
 						{/each}
 						{#each Array(startOffset(focusedMonth + 1)).fill(0) as _, day}
-							<div class:month={true} />
+							<div class:month={true} class:outside={true} />
 						{/each}
 						{#each Array(getMonthDays(focusedMonth + 1)).fill(0) as _, day}
 							{#if isActive(day, 1)}
@@ -404,125 +450,19 @@
 							{/if}
 						{/each}
 						{#each Array(getMonthDays(focusedMonth + 1) + startOffset(focusedMonth + 1) > 34 ? endOffset(focusedMonth + 1) : endOffset(focusedMonth + 1) + 7).fill(0) as _, day}
-							<div class:month={true} />
+							<div class:month={true} class:outside={true}/>
 						{/each}
 					</header>
 				</div>
-			</div>
-		</div>
-		<div class="selected_date_container">
-			<div>
-				<h1>Arriving</h1>
-				<div class="selection_wrapper">
-					{#if selectedDate}
-						<div
-							on:click={() => {
-								if (selectedDate) {
-									focusedMonth = selectedDate.getMonth();
-									focusedYear = selectedDate.getFullYear();
-								}
-							}}
-							class="selected date"
-						>
-							<p>{monthNames[selectedDate.getMonth()].slice(0, 3).toUpperCase()}</p>
-
-							<p>{selectedDate.getDate()}</p>
-
-							<p>{selectedDate.getFullYear()}</p>
-						</div>
-					{:else}
-						<div class="unselected date">
-							<p>----</p>
-
-							<p>--</p>
-
-							<p>---</p>
-						</div>
-					{/if}
-					<input
-						bind:this={inputDate}
-						type="date"
-						on:change={(e) => {
-							let inputDate = e.target?.value;
-							let date = new Date(inputDate.split('-').join());
-							if (!isNaN(date)) {
-								focusedMonth = date.getMonth();
-								focusedYear = date.getFullYear();
-								if (secondSelectedDate && secondSelectedDate < date) {
-									secondSelectedDate = null;
-									secondInputDate.value = '';
-								}
-								selectedDate = date;
-							}
-						}}
-					/>
-				</div>
-			</div>
-			<div>
-				<h1>Departing</h1>
-				<div class="selection_wrapper">
-					{#if secondSelectedDate}
-						<div
-							on:click={() => {
-								if (secondSelectedDate) {
-									focusedMonth = secondSelectedDate.getMonth();
-									focusedYear = secondSelectedDate.getFullYear();
-								}
-							}}
-							class="selected date"
-						>
-							<p>{monthNames[secondSelectedDate.getMonth()].slice(0, 3).toUpperCase()}</p>
-
-							<p>{secondSelectedDate.getDate()}</p>
-
-							<p>{secondSelectedDate.getFullYear()}</p>
-						</div>
-					{:else}
-						<div class="unselected date">
-							<p>----</p>
-
-							<p>--</p>
-
-							<p>---</p>
-						</div>
-					{/if}
-					<input
-						bind:this={secondInputDate}
-						type="date"
-						on:change={(e) => {
-							let input = e.target?.value;
-							let splitDate = input.split('-');
-							let date = new Date(splitDate.join());
-
-							if (!isNaN(date) && splitDate[0] > 1970) {
-								if (selectedDate && selectedDate > date) {
-									selectedDate = null;
-									if (inputDate) {
-										inputDate.value = '';
-									}
-								}
-								focusedMonth = date.getMonth();
-								focusedYear = date.getFullYear();
-								secondSelectedDate = date;
-							}
-						}}
-					/>
-				</div>
-			</div>
-			<div class:button_container={true}>
-				<button
-					class:disabled={!selectedDate || !secondSelectedDate}
-					class:submit={true}
-					on:click={() => {
-						console.log(selectedDate, secondSelectedDate);
-					}}>Schedule Trip</button
-				>
 			</div>
 		</div>
 	</div>
 </section>
 
 <style>
+	.outside {
+		pointer-events: none;
+	}
 	.button_container {
 		display: flex;
 		flex: 1;
@@ -532,7 +472,7 @@
 	}
 	.calendar_container {
 		display: flex;
-		gap: 32px;
+		gap: 16px;
 	}
 	.button_container > .disabled {
 		opacity: 0.5;
@@ -556,35 +496,21 @@
 		border-color: red;
 	}
 	.button_container > .submit {
-		flex: 1;
-		font-size: 1rem;
+		font-size: medium;
 		cursor: pointer;
 		border: none;
 		color: white;
 		border-radius: 8px;
 		font-weight: 600;
+		width: 100%;
+		height: 100%;
+		margin: 24px;
 		background-color: var(--confirm-button);
 	}
 	button:hover {
 		opacity: 0.6;
 	}
-	.month_navigation > h1 > button {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		cursor: pointer;
-		background-color: var(--main-button);
-		border: none;
-		border-radius: 8px;
-		font-weight: 600;
-		color: white;
-	}
-	.month_navigation > h1 > button:first-child {
-		flex: 1 1 70%;
-	}
-	.month_navigation > h1 > button:last-child {
-		flex: 1 1 30%;
-	}
+
 	.month_navigation {
 		display: flex;
 		justify-content: space-between;
@@ -592,6 +518,7 @@
 		flex: 1;
 		gap: 8px;
 		width: 100%;
+		position: relative;
 	}
 
 	.month_navigation > h1 {
@@ -599,27 +526,32 @@
 		display: flex;
 		flex: 1;
 		align-items: center;
-		justify-content: space-around;
+		justify-content: center;
 		padding: 0px;
 		margin: 0px;
 		gap: 8px;
-		font-size: medium;
+		font-size: small;
 	}
 
 	.month_navigation > button {
 		cursor: pointer;
+		position: absolute;
 		border: 1px solid var(--main-button);
 		background-color: transparent;
-		border-radius: 8px;
+		border-radius: 50%;
+		aspect-ratio: 1;
 		font-weight: 800;
 		color: var(--main-button);
 	}
-
+	.month_navigation > button:last-child {
+		right: 0;
+	}
 	.selection_wrapper {
 		display: flex;
 		flex-direction: column;
-		gap: 24px;
 		align-items: center;
+		justify-content: center;
+		gap: 12px;
 	}
 	section {
 		background-color: transparent;
@@ -633,6 +565,7 @@
 	}
 	section > div {
 		display: flex;
+		flex-direction: column;
 		gap: 24px;
 	}
 	:global([class~='active']:last-of-type) {
@@ -671,9 +604,13 @@
 		display: grid;
 		grid-template-columns: repeat(7, 1fr);
 		text-align: center;
-		background-color: var(--calendar-color);
+		background-color: transparent;
 	}
-
+	.interval_arrow {
+		fill: white;
+		width: 35px;
+		padding-bottom: 25px;
+	}
 	header > h3 {
 		height: 100%;
 		margin: 0px;
@@ -687,8 +624,8 @@
 		justify-content: center;
 		align-items: center;
 		background-color: transparent;
-		margin-top: 4px;
-		margin-bottom: 4px;
+		margin-top: 2px;
+		margin-bottom: 2px;
 		padding: 4px;
 		min-height: 20px;
 		min-width: 20px;
@@ -705,10 +642,8 @@
 		align-items: center;
 	}
 	.month:hover > p {
-		border: 1px solid black;
+		border: 1px solid rgb(255, 255, 255);
 		border-radius: 50%;
-		min-height: 20px;
-		min-width: 20px;
 	}
 	.active > p {
 		display: flex;
@@ -726,15 +661,10 @@
 		background-color: transparent;
 	}
 
-	.outside {
-		opacity: 0.5;
-	}
-
 	.selected_date_container {
 		display: flex;
-		flex-direction: column;
-		justify-content: space-between;
-		gap: 10px;
+		justify-content: center;
+		gap: 12px;
 	}
 	.selected_date_container > div {
 		display: flex;
