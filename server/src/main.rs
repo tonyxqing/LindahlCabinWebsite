@@ -1,132 +1,17 @@
 use actix_web::{guard, web, web::Data, App, HttpRequest, HttpResponse, HttpServer};
-use async_graphql::{
-    http::GraphiQLSource, Context, EmptyMutation, EmptySubscription, Enum, Object, Schema,
-};
+use async_graphql::{http::GraphiQLSource, EmptySubscription, Schema};
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
-use mongodb::{bson::doc, options::ClientOptions, Client, Database};
-use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
-pub type Storage = Arc<Mutex<Resolver>>;
+use std::sync::Arc;
 
-#[derive(Enum, Copy, Clone, Eq, PartialEq, Serialize, Deserialize, Debug)]
-pub enum Role {
-    Owner,
-    Member,
-}
+use crate::gql::Resolver;
+mod db;
+mod gql;
+mod model;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct User {
-    pub name: String,
-    pub email: String,
-    pub phone: String,
-    pub role: Role,
-}
-
-#[Object]
-impl User {
-    async fn name(&self) -> &str {
-        &self.name
-    }
-    async fn email(&self) -> &str {
-        &self.email
-    }
-    async fn phone(&self) -> &str {
-        &self.phone
-    }
-    async fn role(&self) -> &Role {
-        &self.role
-    }
-}
-
-impl Default for User {
-    fn default() -> Self {
-        Self {
-            name: "".to_string(),
-            email: "".to_string(),
-            phone: "".to_string(),
-            role: Role::Member,
-        }
-    }
-}
-
-pub struct Resolver {
-    pub db: Database,
-}
-
-impl Resolver {
-    pub async fn new() -> Self {
-        let client_options = ClientOptions::parse("mongodb://localhost:27017")
-            .await
-            .expect("Error occured with mongodb client options");
-        let client = Client::with_options(client_options).expect("Can't connect to mongodb client");
-        Self {
-            db: client.database("LFC"),
-        }
-    }
-
-    pub async fn from_context(ctx: &Context<'_>) -> Storage {
-        ctx.data::<Storage>()
-            .expect("Could not find resolver in context")
-            .clone()
-    }
-
-    pub fn get_users(&self) -> String {
-        "Memer".to_string()
-    }
-
-    pub fn add_user(&self, user: User) -> Result<User, String> {
-        let collection = self.db.collection::<User>("Users");
-        collection.insert_one(user.clone(), None);
-        Ok(user)
-    }
-}
-pub struct Query;
-
-#[Object]
-impl Query {
-    /// Returns the sum of a and b
-    async fn add(&self, a: i32, b: i32) -> i32 {
-        let res = a + b;
-        println!("{}", res);
-        res
-    }
-    async fn get_users(&self, ctx: &Context<'_>) -> String {
-        let r = ctx
-            .data::<Storage>()
-            .expect("Error retrieving context")
-            .clone();
-        let r = r.lock().unwrap();
-        r.get_users()
-    }
-}
-
-pub struct Mutation;
-
-#[Object]
-impl Mutation {
-    pub async fn add_member(
-        &self,
-        ctx: &Context<'_>,
-        name: String,
-        email: String,
-        phone: String,
-        role: Role,
-    ) -> Result<User, String> {
-        let r = Resolver::from_context(ctx).await;
-        let r = r.lock().unwrap();
-        let user = User {
-            name,
-            email,
-            phone,
-            role,
-        };
-        r.add_user(user.clone())
-    }
-}
-
-type AppSchema = Schema<Query, Mutation, EmptySubscription>;
+type AppSchema = Schema<gql::Query, gql::Mutation, EmptySubscription>;
 
 async fn index(schema: web::Data<AppSchema>, req: GraphQLRequest) -> GraphQLResponse {
+    // let data = req.app_data::<web::Data<>>
     schema.execute(req.into_inner()).await.into()
 }
 
@@ -151,15 +36,18 @@ async fn index_ws(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let schema = Schema::build(Query, Mutation, EmptySubscription)
-        .data(Storage::new(Mutex::new(Resolver::new().await)))
-        .finish();
+    let r = Resolver::new().await;
+    let ar = Arc::new(r);
 
+    let schema = Schema::build(gql::Query, gql::Mutation, EmptySubscription)
+        .data(ar.clone())
+        .finish();
     println!("GraphiQL IDE: http://localhost:8000");
 
     HttpServer::new(move || {
         App::new()
             .app_data(Data::new(schema.clone()))
+            .app_data(Data::new(ar.clone()))
             .service(web::resource("/").guard(guard::Post()).to(index))
             .service(
                 web::resource("/")
