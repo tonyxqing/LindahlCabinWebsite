@@ -1,6 +1,7 @@
-use actix_web::{guard, web, web::Data, App, HttpRequest, HttpResponse, HttpServer};
+use actix_web::{guard, web, web::Data, App, HttpRequest, HttpResponse, HttpServer, http::header};
 use async_graphql::{http::GraphiQLSource, EmptySubscription, Schema};
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
+use actix_cors::Cors;
 use std::sync::Arc;
 
 use crate::gql::Resolver;
@@ -36,18 +37,21 @@ async fn index_ws(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+
+
+    println!("GraphiQL IDE: http://localhost:8000");
     let r = Resolver::new().await;
     let ar = Arc::new(r);
 
     let schema = Schema::build(gql::Query, gql::Mutation, EmptySubscription)
-        .data(ar.clone())
-        .finish();
-    println!("GraphiQL IDE: http://localhost:8000");
+    .data(ar.clone())
+    .finish();
 
     HttpServer::new(move || {
         App::new()
+            .wrap(Cors::default().allow_any_origin().send_wildcard())
             .app_data(Data::new(schema.clone()))
-            .app_data(Data::new(ar.clone()))
+            .app_data(Data::new(ar.clone()))            
             .service(web::resource("/").guard(guard::Post()).to(index))
             .service(
                 web::resource("/")
