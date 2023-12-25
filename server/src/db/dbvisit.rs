@@ -77,7 +77,7 @@ pub async fn remove_visit(db: &db::DB, visit_id: ObjectId) -> Result<Visit, Stri
         .find_one_and_delete(filter, None)
         .await
         .expect("Failed to delete visit from db");
-    Ok(result.unwrap())
+    result.map_or(Err(format!("No visit found for {}", visit_id)), |result| Ok(result))
 }
 
 pub async fn get_visits(
