@@ -8,6 +8,7 @@ use crate::gql::Resolver;
 mod db;
 mod gql;
 mod model;
+mod auth;
 
 type AppSchema = Schema<gql::Query, gql::Mutation, EmptySubscription>;
 

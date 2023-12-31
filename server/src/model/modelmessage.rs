@@ -1,15 +1,27 @@
 use async_graphql::Enum;
 use mongodb::bson::{oid::ObjectId, serde_helpers::hex_string_as_object_id, DateTime};
 use serde::{Deserialize, Serialize};
-#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Reaction {
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum ReactionEmoji {
+    #[default]
     ThumbsUp,
     Heart,
     Smile,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Reaction {
+    #[serde(with = "hex_string_as_object_id")]
+    pub _id: String,
+    pub creator_id: String,
+    pub emoji: ReactionEmoji,
+}
+
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Comment {
+    #[serde(with = "hex_string_as_object_id")]
     pub _id: String,
     pub creator_id: String,
     pub content: String,
