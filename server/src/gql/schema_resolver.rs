@@ -3,7 +3,7 @@ use mongodb::bson::oid::ObjectId;
 use mongodb::bson::{DateTime, Uuid};
 
 use crate::db::{MessageEntry, MessageFilter, UserEntry, UserFilter, VisitEntry, VisitUpdate};
-use crate::gql;
+use crate::{gql, auth};
 use crate::model::{self, Reaction, Role, Visit};
 use crate::model::{Message, User};
 
@@ -20,6 +20,15 @@ impl Query {
         res
     }
 
+    async fn check_credentials(&self, credentials: String) -> String {
+        let claims = auth::decode_jwt(credentials).await.expect("Error decoding token");
+        format!("claims {:?}", claims)
+    }
+
+    async fn validate_account(&self, ctx: &Context<'_>, user_id: String, credentials: String) -> bool {
+        true
+    }
+
     async fn get_users(
         &self,
         ctx: &Context<'_>,
@@ -28,6 +37,8 @@ impl Query {
         phone: Option<String>,
         email: Option<String>,
         role: Option<Role>,
+        sub: Option<String>,
+
     ) -> Vec<UserData> {
         let r = gql::Resolver::from_context(ctx).await;
         let filter = UserFilter {
@@ -40,6 +51,7 @@ impl Query {
             phone,
             email,
             role,
+            sub
         };
         let users = r
             .get_users(filter)
@@ -109,24 +121,69 @@ pub struct Mutation;
 
 #[Object]
 impl Mutation {
+    pub async fn add_comment(&self, ctx: &Context<'_>, message_id: String, comment_content: String) -> Result<MessageData, String> {
+        let r = gql::Resolver::from_context(ctx).await;
+        let id = ObjectId::parse_str(message_id).expect("Unable to parse string to oid");
+        let result = r.add_comment(id, comment_content).await.expect("");
+        Ok(MessageData(result.clone()))
+
+    }
+
+    pub async fn remove_comment(&self, ctx: &Context<'_>, message_id: String, comment_id: String) -> Result<MessageData, String> {
+        let r = gql::Resolver::from_context(ctx).await;
+        let id = ObjectId::parse_str(message_id).expect("Unable to parse string to oid");
+        let c_id = ObjectId::parse_str(comment_id).expect("Unable to parse string to oid");
+        let result = r.remove_comment(id, c_id).await.expect("");
+        Ok(MessageData(result.clone()))
+
+    }
+    pub async fn get_session(&self, ctx: &Context<'_>, credentials: String) -> Result<String, String> {
+        let r = gql::Resolver::from_context(ctx).await;
+        // take a credential token from oauth service
+        let (sub, _) = auth::decode_jwt(credentials).await.map_err(|_| "Error occured decoding jwt")?;
+        // check database to see if sub is there
+        let user = r.get_users(UserFilter{sub: Some(sub.clone()), ..Default::default()}).await?.first().cloned();
+        
+        if user.is_none() {
+            return Ok("MAKE_ACCOUNT".to_string());
+        } else if !user.unwrap().is_active {
+            return Ok("ACTIVATE_ACCOUNT".to_string());
+        }
+        // create session token
+        let token = auth::create_token().await.map_err(|_| "Error creating token")?;
+
+        // if user not there send token indicating to make an account
+        // create account token
+
+        Ok(token)
+    }
+
     pub async fn add_member(
         &self,
         ctx: &Context<'_>,
         name: String,
-        email: String,
         phone: String,
-        role: model::Role,
+        credentials: String,
+        
     ) -> Result<gql::UserData, String> {
         let r = gql::Resolver::from_context(ctx).await;
+        let (sub, email) = auth::decode_jwt(credentials).await.map_err(|_| "Failed to get sub from token")?;
+        let existing_user = r.get_users(UserFilter{sub: Some(sub.clone()), ..Default::default()}).await.map_err(|_| "Unable to get users")?;
         let u = UserEntry {
             name,
             email,
             phone,
-            role,
+            sub,
+            role: Role::Member,
+            is_active: false,
         };
-        let result = r.add_user(&u).await;
-        let user: UserData = gql::UserData(result.unwrap().clone());
-        Ok(user)
+        if existing_user.is_empty() {
+            let result = r.add_user(&u).await;
+            let user: UserData = gql::UserData(result.unwrap().clone());
+            Ok(user)
+        } else {
+            Err("User already exists".to_string())
+        }
     }
 
     pub async fn remove_member(
@@ -143,6 +200,13 @@ impl Mutation {
             .await;
         let user = gql::UserData(result.expect("Failed to remove user"));
         Ok(user)
+    }
+
+    async fn activate_account(&self, ctx: &Context<'_>, id: String) -> Result<UserData, String> {
+        let r = gql::Resolver::from_context(ctx).await;
+        let result = r.activate_account(ObjectId::parse_str(id).expect("failed to parse")).await?;
+
+        Ok(UserData (result))
     }
 
     async fn add_message(
@@ -242,19 +306,13 @@ impl Mutation {
         ctx: &Context<'_>,
         id: String,
         creator_id: String,
-        comment_id: Option<String>,
         content: Option<String>,
-        comment: Option<String>,
-        reaction: Option<Reaction>,
     ) -> Result<MessageData, String> {
         let r = gql::Resolver::from_context(ctx).await;
         let filter = MessageFilter {
             id: Some(ObjectId::parse_str(id).expect("Did not parse id")),
             creator_id: Some(creator_id),
-            comment_id,
-            comment,
             content,
-            reaction,
             start_time: None,
             end_time: None,
             ..MessageFilter::default()
@@ -262,5 +320,16 @@ impl Mutation {
         let result = r.update_message(filter).await;
         let message = MessageData(result.expect("failed to retrieve Message"));
         Ok(message)
+    }
+
+    pub async fn remove_message(
+        &self,
+        ctx: &Context<'_>,
+        message_id: String
+    ) -> Result<MessageData, String> {
+        let r = gql::Resolver::from_context(ctx).await;
+        let id = ObjectId::parse_str(message_id).expect("Did not parse id");
+        let result = r.remove_message(id).await.expect("Failed to remove message");
+        Ok(MessageData (result.clone()))
     }
 }

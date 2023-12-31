@@ -1,4 +1,4 @@
-use crate::model::{self, Reaction};
+use crate::model::{self, Reaction, ReactionEmoji};
 use async_graphql::Object;
 use mongodb::bson::Uuid;
 
@@ -20,6 +20,12 @@ impl UserData {
     }
     async fn role(&self) -> &model::Role {
         &self.0.role
+    }
+    async fn is_active(&self) -> bool {
+        self.0.is_active
+    }
+    async fn sub(&self) -> &str {
+        &self.0.sub
     }
 }
 
@@ -46,6 +52,19 @@ impl VisitData {
     }
 }
 
+struct ReactionData (pub Reaction);
+#[Object]
+impl ReactionData {
+    async fn id(&self) -> &str {
+        &self.0._id
+    }
+    async fn creator_id(&self) -> &str {
+        &self.0.creator_id
+    }
+    async fn emoji(&self) -> ReactionEmoji {
+        self.0.emoji
+    }
+}
 pub struct CommentData(pub model::Comment);
 #[Object]
 impl CommentData {
@@ -58,8 +77,8 @@ impl CommentData {
     async fn content(&self) -> &str {
         &self.0.content
     }
-    async fn reactions(&self) -> Vec<Reaction> {
-        self.0.reactions.clone()
+    async fn reactions(&self) -> Vec<ReactionData> {
+        self.0.reactions.iter().map(|r| ReactionData (r.clone())).collect()
     }
 }
 pub struct MessageData(pub model::Message);
@@ -81,8 +100,8 @@ impl MessageData {
     async fn content(&self) -> &str {
         &self.0.content
     }
-    async fn reactions(&self) -> Vec<Reaction> {
-        self.0.reactions.clone()
+    async fn reactions(&self) -> Vec<ReactionData> {
+        self.0.reactions.iter().map(|r| ReactionData (r.clone())).collect()
     }
     async fn seen_by(&self) -> Vec<String> {
         self.0.seen_by.clone()

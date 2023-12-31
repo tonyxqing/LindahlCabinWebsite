@@ -17,4 +17,6 @@ pub struct User {
     pub email: String,
     pub phone: String,
     pub role: Role,
+    pub is_active: bool,
+    pub sub: String,
 }

@@ -6,6 +6,15 @@ use mongodb::bson::{doc, DateTime, Document};
 use mongodb::options::{FindOneAndUpdateOptions, ReturnDocument};
 use serde::{Deserialize, Serialize};
 
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+
+pub struct CommentEntry {
+    pub _id: ObjectId,
+    pub creator_id: String,
+    pub content: String,
+    pub reactions: Vec<Reaction>
+}
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MessageEntry {
     pub creator_id: String,
@@ -33,12 +42,9 @@ impl Default for MessageEntry {
 pub struct MessageFilter {
     pub id: Option<ObjectId>,
     pub creator_id: Option<String>,
-    pub comment_id: Option<String>,
     pub content: Option<String>,
     pub start_time: Option<DateTime>,
     pub end_time: Option<DateTime>,
-    pub reaction: Option<Reaction>,
-    pub comment: Option<String>,
 }
 
 impl MessageFilter {
@@ -50,12 +56,7 @@ impl MessageFilter {
         }
 
         if let Some(creator_id) = &self.creator_id {
-            if self.comment.is_none() && self.reaction.is_none() {
-                doc.insert("creator_id", creator_id);
-            }
-        }
-        if let Some(comment_id) = &self.comment_id {
-            doc.insert("comments", doc! { "_id": comment_id});
+            doc.insert("creator_id", creator_id);
         }
 
         if let Some(start_time) = &self.start_time {
@@ -75,36 +76,11 @@ impl MessageFilter {
     fn to_update_doc(&self) -> Document {
         let mut doc = doc! {};
         let mut set = doc! {};
-        let mut push = doc! {};
         if let Some(content) = &self.content {
             set.insert("content", content);
         }
-        if let Some(c) = &self.comment {
-            let comment = Comment {
-                _id: ObjectId::new().to_string(),
-                creator_id: self.creator_id.clone().unwrap(),
-                content: c.to_string(),
-                reactions: vec![],
-            };
-            push.insert(
-                "comments",
-                mongodb::bson::to_bson(&comment).expect("Error parsing to bson"),
-            );
-        }
-        if self.comment_id.is_none() {
-            if let Some(reaction) = self.reaction {
-                push.insert(
-                    "reactions",
-                    mongodb::bson::to_bson(&reaction).expect("Error parsing to bson"),
-                );
-            }
-        } else {
-            if let Some(reaction) = self.reaction {
-                set.insert("comments", doc! {"$push": doc! { "reactions": mongodb::bson::to_bson(&reaction).expect("Error parsing to bson")}});
-            }
-        }
+
         doc.insert("$set", set);
-        doc.insert("$push", push);
         doc
     }
 }
@@ -157,4 +133,26 @@ pub async fn update_message(db: &db::DB, filter: MessageFilter) -> Result<Messag
         )
         .await;
     Ok(result.expect("Failed to update message in db").unwrap())
+}
+
+pub async fn remove_message(db: &db::DB, message_id: ObjectId) -> Result<Message, String> {
+    let collection = db.client.collection::<Message>("Messages");
+    let result = collection.find_one_and_delete(doc! {"_id": message_id}, None).await.expect("Failed to remove message from db");
+    result.map_or(Err("Failed".to_string()), |message| Ok(message))
+}
+
+pub async fn add_comment(db: &db::DB, message_id: ObjectId, comment_content: String) -> Result<Message, String> {
+    let collection = db.client.collection::<Message>("Messages");
+    let comment = CommentEntry {
+        content: comment_content,
+        ..Default::default()
+    };
+    let result = collection.find_one_and_update(doc! {"_id": message_id}, doc!{"$push": doc! {"comments": mongodb::bson::to_bson(&comment).expect("Failed to convert comment to bson") }}, None).await.expect("Failed to add comment to message in db");
+    result.map_or(Err("Could not update with comment in db".to_string()), |message| Ok(message.clone()))
+}
+
+pub async fn remove_comment(db: &db::DB, message_id: ObjectId, comment_id: ObjectId) -> Result<Message, String> {
+    let collection = db.client.collection::<Message>("Messages");
+    let result = collection.find_one_and_update(doc! {"_id": message_id}, doc!{"$pull": doc! {"comments": doc!{"_id": comment_id}}}, None).await.expect("Failed to remove comment on message in db");
+    result.map_or(Err("Could not update with comment in db".to_string()), |message| Ok(message.clone()))
 }
