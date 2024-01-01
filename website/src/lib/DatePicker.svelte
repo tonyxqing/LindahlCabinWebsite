@@ -4,6 +4,7 @@
 	import DatePickerV2 from './DatePickerV2.svelte';
 	let secondSelectedDate: CalendarDate | undefined;
 	let selectedDate: CalendarDate | undefined;
+
 	export let selectingDate = false;
 	let guestInput: HTMLInputElement;
 	let guestValue = 1;
@@ -63,7 +64,10 @@
 	</div>
 	<div
 		role="none"
-		on:click={() => {
+		on:click={async () => {
+			if (selectedDate && secondSelectedDate) {
+				await addVisit(selectedDate?.toISOString(), secondSelectedDate?.toISOString(), guestValue);
+			}
 			selectedDate = undefined;
 			secondSelectedDate = undefined;
 		}}
@@ -96,6 +100,7 @@
 <style>
 	section {
 		width: 100%;
+		height: 100%;
 	}
 	@media (max-width: 720px) {
 		section {

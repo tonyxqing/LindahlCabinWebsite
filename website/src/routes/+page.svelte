@@ -4,12 +4,10 @@
 
 	import CalendarComponent from '$lib/CalendarComponent.svelte';
 	import { CalendarDate } from '$lib/client/calendarUtils';
+	import VisitContainer from '$lib/client/VisitContainer.svelte';
 	let selectingDate: boolean;
 	// The current page on the calendar
-	let date = new Date();
-	let focused = new CalendarDate(date);
-	let selectedDate: CalendarDate;
-	let secondSelectedDate: CalendarDate;
+	let count = 0;
 </script>
 
 <section
@@ -18,8 +16,12 @@
 		selectingDate = false;
 	}}
 >
-	<DatePicker bind:selectingDate bind:selectedDate bind:secondSelectedDate />
+	<!-- <DatePicker bind:selectingDate bind:selectedDate bind:secondSelectedDate /> -->
 	<!-- <DatePickerV2 bind:selectingDate bind:focused bind:selectedDate bind:secondSelectedDate/> -->
+	<DatePicker bind:selectingDate bind:count />
+	{#key count}
+	    <VisitContainer/>
+	{/key}
 </section>
 
 <style>
@@ -45,11 +47,10 @@
 		height: 100%;
 	}
 	section {
-		display: flex;
 		width: 100%;
 		height: 100%;
 		gap: 24px;
-		justify-content: center;
+		
 	}
 	@media (prefers-color-scheme: dark) {
 		:global(:root) {

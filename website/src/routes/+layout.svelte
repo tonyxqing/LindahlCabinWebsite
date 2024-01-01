@@ -1,12 +1,9 @@
-<section>
-    <slot></slot>
-</section>
-
-<style>
-    section {
-        display: flex;
-        flex: 1;
-        width: 100%;
-        height: 100%;
-    }
-</style>
+<script>
+	import GoogleSigninButton from "$lib/GoogleSigninButton.svelte";
+</script>
+<nav>
+    <a href="/schedule">Schedule</a>
+    <a href="/blog">Blog</a>
+    <GoogleSigninButton/>
+</nav>
+<slot/>
