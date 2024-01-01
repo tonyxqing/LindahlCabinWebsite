@@ -1,9 +1,11 @@
 <script lang="ts">
 	import Calendar from '$lib/Calendar.svelte';
 	import { daysOfWeek, monthNames } from '$lib/Utils';
+    import {addVisit} from '$lib/client/serverComms';
 	let secondSelectedDate: Date | null;
 	let selectedDate: Date | null;
 	export let selectingDate = false;
+	export let count = 0;
 	let guestInput: HTMLInputElement;
 	let guestValue = 1;
 </script>
@@ -61,7 +63,11 @@
 	</div>
 	<div
 		role="none"
-		on:click={() => {
+		on:click={async () => {
+			if (selectedDate && secondSelectedDate) {
+				await addVisit(selectedDate?.toISOString(), secondSelectedDate?.toISOString(), guestValue);
+				count++;
+			}
 			selectedDate = null;
 			secondSelectedDate = null;
 		}}
