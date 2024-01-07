@@ -36,16 +36,11 @@
 		font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
 			Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 		background-color: #ffffff;
-		width: 100%;
-		height: 100%;
 	}
 	:global(button) {
 		background-color: #f9f9f9;
 	}
-	:global(body) {
-		width: 100%;
-		height: 100%;
-	}
+
 	section {
 		width: 100%;
 		height: 100%;
@@ -61,6 +56,12 @@
 			--active-color: #050508;
 			color: #dfe1e2;
 			background-color: #02041c;
+			height: 100%;
+			min-height: 100vh;
+		}
+		:global(body) {
+			height: 100%;
+			min-height: 100vh;
 		}
 		:global(button) {
 			--main-button: rgb(94, 124, 220);

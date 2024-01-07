@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getSession } from './client/serverComms';
+	import { goto } from '$app/navigation';
+	import { account } from './client/authStore';
 	function parseJwt(token: string) {
 		var base64Url = token.split('.')[1];
 		var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -27,25 +29,34 @@
 			}) => {
 				let session = await getSession(params.credential);
 				switch (session) {
-					case "MAKE_ACCOUNT":
+					case 'MAKE_ACCOUNT':
 						// make account page
-						console.log("make account")
+						console.log('make account');
+						goto("/account/create")
 						break;
-					case "ACTIVATE_ACCOUNT":
-						console.log("activate account")
+					case 'ACTIVATE_ACCOUNT':
+						console.log('activate account');
+						goto("/account/activate")
 						break;
 					default:
 						let token = parseJwt(session);
-						console.log(token)
-
+						$account = (token)
 				}
 			}
 		});
 		window.google.accounts.id.renderButton(
 			document.getElementById('buttonDiv'),
-			{ theme: 'outline', size: 'large' } // customization attributes
+			{
+				type: 'standard',
+				size: 'medium',
+				theme: 'outline',
+				text: 'Sign in with Google',
+				shape: 'pill',
+				logo_alignment: 'left',
+			} // customization attributes
 		);
 	});
 </script>
 
 <div id="buttonDiv" />
+
