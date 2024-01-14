@@ -1,6 +1,15 @@
 <script lang="ts">
+	import DatePickerV2 from '$lib/DatePickerV2.svelte';
 	import DatePicker from '$lib/DatePicker.svelte';
+
+	import CalendarComponent from '$lib/CalendarComponent.svelte';
+	import { CalendarDate } from '$lib/client/calendarUtils';
 	let selectingDate: boolean;
+	// The current page on the calendar
+	let date = new Date();
+	let focused = new CalendarDate(date);
+	let selectedDate: CalendarDate;
+	let secondSelectedDate: CalendarDate;
 </script>
 
 <section
@@ -9,7 +18,8 @@
 		selectingDate = false;
 	}}
 >
-	<DatePicker bind:selectingDate />
+	<DatePicker bind:selectingDate bind:selectedDate bind:secondSelectedDate />
+	<!-- <DatePickerV2 bind:selectingDate bind:focused bind:selectedDate bind:secondSelectedDate/> -->
 </section>
 
 <style>
@@ -50,9 +60,6 @@
 			--active-color: #050508;
 			color: #dfe1e2;
 			background-color: #02041c;
-		}
-		a:hover {
-			color: #747bff;
 		}
 		:global(button) {
 			--main-button: rgb(94, 124, 220);

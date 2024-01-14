@@ -1,14 +1,16 @@
 <script lang="ts">
 	import Calendar from '$lib/Calendar.svelte';
-	import { daysOfWeek, monthNames } from '$lib/Utils';
-	let secondSelectedDate: Date | null;
-	let selectedDate: Date | null;
+	import { daysOfWeek, monthNames, CalendarDate } from '$lib/client/calendarUtils';
+	import DatePickerV2 from './DatePickerV2.svelte';
+	let secondSelectedDate: CalendarDate | undefined;
+	let selectedDate: CalendarDate | undefined;
 	export let selectingDate = false;
 	let guestInput: HTMLInputElement;
 	let guestValue = 1;
+	let w: number;
 </script>
 
-<section>
+<section bind:clientWidth={w}>
 	<div class="container destination">
 		<sub>Destination</sub>
 		<div>The Cabin</div>
@@ -25,8 +27,8 @@
 		<div style="display: flex; gap: 12px;">
 			{#if selectedDate}
 				<div>
-					{monthNames[selectedDate?.getMonth()].slice(0, 3)}
-					{selectedDate?.getDate()}
+					{monthNames[selectedDate?.month].slice(0, 3)}
+					{selectedDate?.day}
 				</div>
 			{:else}
 				<div>----</div>
@@ -34,8 +36,8 @@
 			-
 			{#if secondSelectedDate}
 				<div>
-					{monthNames[secondSelectedDate?.getMonth()].slice(0, 3)}
-					{secondSelectedDate?.getDate()}
+					{monthNames[secondSelectedDate?.month].slice(0, 3)}
+					{secondSelectedDate?.day}
 				</div>
 			{:else}
 				<div>----</div>
@@ -45,7 +47,7 @@
 	<div
 		role="none"
 		on:click={() => {
-		    guestInput.focus();
+			guestInput.focus();
 		}}
 		class="container"
 	>
@@ -62,37 +64,39 @@
 	<div
 		role="none"
 		on:click={() => {
-			selectedDate = null;
-			secondSelectedDate = null;
+			selectedDate = undefined;
+			secondSelectedDate = undefined;
 		}}
 		class="container schedule_trip"
 	>
 		Confirm Trip
 	</div>
-	{#if selectingDate}
+	<div
+		role="none"
+		on:click={(e) => {
+			e.stopPropagation();
+		}}
+		class:calendar_container={true}
+		class:hidden={!selectingDate}
+	>
+		<DatePickerV2 mobile={w < 400} bind:selectedDate bind:secondSelectedDate />
 		<div
 			role="none"
-			on:click={(e) => {
-				e.stopPropagation();
+			class="select_dates_button"
+			on:click={() => {
+				selectingDate = false;
+				guestInput.focus();
 			}}
-			style="display: flex; flex-direction: column; align-items: center; position: absolute; background-color: var(--calendar-color); padding: 12px; border-radius: 12px; z-index: 100"
 		>
-			<Calendar bind:selectedDate bind:secondSelectedDate />
-			<div
-				role="none"
-				class="select_dates_button"
-				on:click={() => {
-					selectingDate = false;
-                    guestInput.focus()
-				}}
-			>
-				Done
-			</div>
+			Done
 		</div>
-	{/if}
+	</div>
 </section>
 
 <style>
+	section {
+		width: 100%;
+	}
 	@media (max-width: 720px) {
 		section {
 			flex-wrap: wrap;
@@ -110,10 +114,26 @@
 			border: 1px solid var(--border-color);
 		}
 	}
+	.calendar_container {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		position: absolute;
+		background-color: var(--calendar-color);
+		padding: 12px;
+		border-radius: 12px;
+		z-index: 100;
+		height: 400px;
+		overflow: auto;
+	}
+	.hidden {
+		visibility: hidden;
+	}
 	section {
 		display: flex;
 		justify-content: center;
 		align-items: center;
+		overflow: hidden;
 	}
 	.destination {
 		cursor: not-allowed !important;
@@ -152,10 +172,9 @@
 		height: 30px;
 		text-align: center;
 		border-radius: 6px;
-        cursor:pointer;
+		cursor: pointer;
 	}
-    .select_dates_button:hover {
+	.select_dates_button:hover {
 		background: blue;
-
-    }
+	}
 </style>

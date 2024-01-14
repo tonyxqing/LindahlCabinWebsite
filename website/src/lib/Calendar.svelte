@@ -1,38 +1,31 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { monthNames, daysOfWeek, numDaysInMonth } from './Utils';
 	import { fly } from 'svelte/transition';
 	import FaArrowRight from 'svelte-icons/fa/FaArrowRight.svelte';
-	// Zeller's Congruence formula to get the first day of month
-	function getFirstDayOfWeek(month: number, day: number, year: number) {
-		if (month < 3) {
-			month += 12;
-			year -= 1;
-		}
+	import { firstDayInMonth, modulus, monthNames, daysOfWeek, numDaysInMonth } from '$lib/client/calendarUtils';
 
-		const K = year % 100;
-		const J = Math.floor(year / 100);
-
-		const dayOfWeek =
-			(day +
-				Math.floor((13 * (month + 1)) / 5) +
-				K +
-				Math.floor(K / 4) +
-				Math.floor(J / 4) -
-				2 * J) %
-			7;
-		// + 6 offsets the result to match our daysOfWeek array
-		return (dayOfWeek + 6) % 7;
-	}
-
+	Date.prototype.day = function () {
+		return this.getDate();
+	};
+	Date.prototype.month = function () {
+		return this.getMonth();
+	};
+	Date.prototype.year = function () {
+		return this.getFullYear();
+	};
+	Date.prototype.date = function () {
+		return [this.day(), this.month(), this.year()];
+	};
 	let date = new Date();
-	let selectingMonth = false;
-	let selectingYear = false;
-
 	// The current page on the calendar
-	let focusedDay = date.getDate();
-	let focusedMonth = date.getMonth();
-	let focusedYear = date.getFullYear();
+	let focused = {
+		day: date.getDate(),
+		month: date.getMonth(),
+		year: date.getFullYear()
+	};
+	let focusedDay = date.day();
+	let focusedMonth = date.month();
+	let focusedYear = date.year();
 	export let selectedDate: Date | null = new Date(focusedYear, focusedMonth, focusedDay);
 	export let secondSelectedDate: Date | null = null;
 	let inputDate: HTMLInputElement;
@@ -140,7 +133,7 @@
 		];
 	}
 	function startOffset(focusedMonth: number) {
-		return getFirstDayOfWeek(
+		return firstDayInMonth(
 			focusedMonth >= 12 ? 0 : focusedMonth < 0 ? 11 : focusedMonth + 1,
 			1,
 			focusedYear
@@ -450,7 +443,7 @@
 							{/if}
 						{/each}
 						{#each Array(getMonthDays(focusedMonth + 1) + startOffset(focusedMonth + 1) > 34 ? endOffset(focusedMonth + 1) : endOffset(focusedMonth + 1) + 7).fill(0) as _, day}
-							<div class:month={true} class:outside={true}/>
+							<div class:month={true} class:outside={true} />
 						{/each}
 					</header>
 				</div>
@@ -463,50 +456,18 @@
 	.outside {
 		pointer-events: none;
 	}
-	.button_container {
-		display: flex;
-		flex: 1;
-		gap: 4px;
-		justify-content: center;
-		align-items: center;
-	}
 	.calendar_container {
 		display: flex;
+		justify-content: center;
+		background-color: #7e8594;
 		gap: 16px;
-	}
-	.button_container > .disabled {
-		opacity: 0.5;
-		pointer-events: none;
-	}
-	.button_container > button {
-		flex: 1;
-		cursor: pointer;
-		border: 1px solid var(--main-button);
-		background-color: transparent;
-		color: var(--main-button);
-		border-radius: 8px;
-		font-weight: 600;
 	}
 	.calendar_wrapper {
 		display: flex;
 		justify-content: center;
 		flex-direction: column;
 	}
-	.button_container > .focused_button {
-		border-color: red;
-	}
-	.button_container > .submit {
-		font-size: medium;
-		cursor: pointer;
-		border: none;
-		color: white;
-		border-radius: 8px;
-		font-weight: 600;
-		width: 100%;
-		height: 100%;
-		margin: 24px;
-		background-color: var(--confirm-button);
-	}
+
 	button:hover {
 		opacity: 0.6;
 	}
@@ -664,6 +625,7 @@
 	.selected_date_container {
 		display: flex;
 		justify-content: center;
+		background-color: #595e5b;
 		gap: 12px;
 	}
 	.selected_date_container > div {
