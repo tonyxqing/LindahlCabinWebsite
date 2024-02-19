@@ -1,6 +1,5 @@
 use crate::model::{self, Reaction, ReactionEmoji};
 use async_graphql::Object;
-use mongodb::bson::Uuid;
 
 pub struct UserData(pub model::User);
 
@@ -38,14 +37,14 @@ impl VisitData {
     async fn creator_id(&self) -> &str {
         &self.0.creator_id
     }
-    async fn arrival(&self) -> String {
-        self.0.arrival.to_string()
+    async fn arrival(&self) -> Result<String, String> {
+        Ok(self.0.arrival.try_to_rfc3339_string().map_err(|e| e.to_string())?)
     }
-    async fn departure(&self) -> String {
-        self.0.departure.to_string()
+    async fn departure(&self) -> Result<String, String> {
+        Ok(self.0.departure.try_to_rfc3339_string().map_err(|e| e.to_string())?)
     }
-    async fn posted_on(&self) -> String {
-        self.0.posted_on.to_string()
+    async fn posted_on(&self) -> Result<String, String> {
+        Ok(self.0.posted_on.try_to_rfc3339_string().map_err(|e| e.to_string())?)
     }
     async fn num_staying(&self) -> isize {
         self.0.num_staying

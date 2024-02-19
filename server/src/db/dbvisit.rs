@@ -87,7 +87,7 @@ pub async fn get_visits(
 ) -> Result<Vec<Visit>, String> {
     let collection = db.client.collection::<Visit>("Visits");
     let mut cursor = collection
-        .find(doc! {}, None)
+        .find(doc! { "start_time" : {"$lt": end}, "end_time": {"$gt": start}}, None)
         .await
         .expect("Failed to get visits from db");
     let mut visits = Vec::new();
