@@ -128,6 +128,25 @@ impl Query {
             .map(|visit| VisitData(visit.clone()))
             .collect())
     }
+    pub async fn get_visits(
+        &self,
+        ctx: &Context<'_>,
+        start: Option<String>,
+        end: Option<String>,
+    ) -> Result<Vec<VisitData>, String> {
+        let r = gql::Resolver::from_context(ctx).await;
+        let s = start.map(|date| DateTime::parse_rfc3339_str(date).expect("Error parsing datetime to get visit"));
+        let e = end.map(|date| DateTime::parse_rfc3339_str(date).expect("Error parsing datetime to get visit"));
+        let result = r
+            .get_visits(s, e)
+            .await
+            .expect("Failed to remove visit from resolver");
+
+        Ok(result
+            .iter()
+            .map(|visit| VisitData(visit.clone()))
+            .collect())
+    }
 }
 
 fn parse_date(date: Option<String>) -> Result<Option<DateTime>, String> {

@@ -6,6 +6,7 @@
 	let selectedDate: CalendarDate | undefined;
 	export let count = 0;
 	export let selectingDate = false;
+	export let count = 0;
 	let guestInput: HTMLInputElement;
 	let guestValue = 1;
 	let w: number;
