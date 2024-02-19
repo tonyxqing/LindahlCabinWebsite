@@ -5,12 +5,24 @@
 	onMount(async () => {
 		visits = await getVisits();
 	});
+	function toUTC(date: string): number {
+		const [year, month, day]: number[] = date
+			.split('T')[0]
+			.split('-')
+			.map((x, i) => {
+				if (i === 1) {
+					return parseInt(x) - 1;
+				}
+				return parseInt(x);
+			});
+		return Date.UTC(year, month, day);
+	}
 </script>
 
 <div class="container">
 	{#each visits as { id, creatorId, arrival, departure, numStaying, postedOn }}
-		{@const a = new Date(Date.parse(arrival.split(' ')[0]))}
-		{@const b = new Date(Date.parse(departure.split(' ')[0]))}
+		{@const a = new Date(toUTC(arrival))}
+		{@const b = new Date(toUTC(departure))}
 		{@const c = new Date(Date.parse(postedOn.split(' ')[0]))}
 		<div class="visit_container">
 			<button
@@ -20,9 +32,9 @@
 					visits = await getVisits();
 				}}>x</button
 			>
-			<div>{a.toString()} - {b.toString()}</div>
+			<div>arrival: {a.toISOString()} - departure: {b.toISOString()}</div>
 			<div>{numStaying}</div>
-			<div>{c.toString()}</div>
+			<div>{c.toISOString()}</div>
 		</div>
 	{/each}
 </div>
@@ -34,7 +46,6 @@
 		float: right;
 		color: white;
 		border-radius: 50%;
-		
 	}
 	.visit_container {
 		padding: 8px;

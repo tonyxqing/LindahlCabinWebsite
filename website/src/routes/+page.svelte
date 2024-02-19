@@ -63,11 +63,5 @@
 			height: 100%;
 			min-height: 100vh;
 		}
-		:global(button) {
-			--main-button: rgb(94, 124, 220);
-		}
-		:global(.month) {
-			background-color: rgb(47, 47, 47);
-		}
 	}
 </style>

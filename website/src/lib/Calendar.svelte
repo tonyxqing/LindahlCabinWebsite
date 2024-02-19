@@ -529,7 +529,7 @@
 		flex-direction: column;
 		gap: 24px;
 	}
-	:global([class~='active']:last-of-type) {
+	/* :global([class~='active']:last-of-type) {
 		background-color: rgb(112, 137, 173);
 		border-top-right-radius: 50%;
 		border-bottom-right-radius: 50%;
@@ -544,7 +544,7 @@
 	}
 	:global([class~='active']:first-of-type) > p {
 		background-color: var(--main-button);
-	}
+	} */
 	.invert {
 		background: linear-gradient(90deg, transparent, var(--active-color) 50%) !important;
 	}

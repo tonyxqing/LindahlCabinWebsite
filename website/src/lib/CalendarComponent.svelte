@@ -1,36 +1,63 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import type { Visit } from '$lib/client/serverComms';
 	import { monthNames, daysOfWeek, CalendarDate, numDaysInMonth } from '$lib/client/calendarUtils';
 	export let selectedDate: CalendarDate | undefined;
 	export let secondSelectedDate: CalendarDate | undefined;
-	export let secondCalendar = false;
-
-	let date = new Date();
-	// The current page on the calendar
-	let calendar = new CalendarDate(date);
-	export let focused = calendar;
-
+	export let focused: CalendarDate;
+	export let noSelect = false;
+	export let visits: Visit[] = [];
 	let inputDate: HTMLInputElement;
 	let secondInputDate: HTMLInputElement;
 
+	function makeLedger() {
+		let ledger: { [key: string]: unknown } = {};
+		Array(focused.numDaysInMonth())
+			.fill(0)
+			.forEach((_, day) => (ledger[`${focused.year}-${focused.month + 1}-${day + 1}`] = []));
+		for (let visit of visits) {
+			let arrival = Date.parse(visit.arrival);
+			let departure = Date.parse(visit.departure);
+			
+		}
+	}
+	makeLedger()
+	$: console.log(visits);
 	$: isActive = (day: number): number => {
-		if (selectedDate && secondSelectedDate) {
+		if (selectedDate) {
 			const date = new Date(focused.year, focused.month, day + 1);
 			const newFocused = new CalendarDate(date);
 			if (newFocused.totalDays() === selectedDate?.totalDays()) {
 				return 2;
 			}
-			if (newFocused.totalDays() === secondSelectedDate?.totalDays()) {
-				return 3;
-			}
+			if (secondSelectedDate) {
+				if (newFocused.totalDays() === secondSelectedDate?.totalDays()) {
+					return 3;
+				}
 				if (
 					newFocused.totalDays() > selectedDate?.totalDays() &&
 					newFocused.totalDays() < secondSelectedDate?.totalDays()
 				)
 					return 1;
+			}
 		}
 		return 0;
 	};
+	$: handleClick = (day: number): void => {
+		if (
+			!noSelect &&
+			selectedDate &&
+			(!secondSelectedDate ||
+				(secondSelectedDate && secondSelectedDate!.totalDays() < selectedDate!.totalDays()))
+		) {
+			[secondSelectedDate] = focused.handleClick(day);
+		} else {
+			[selectedDate] = focused.handleClick(day);
+			secondSelectedDate = undefined;
+		}
+	};
+	$: console.log(selectedDate, secondSelectedDate);
+
 	onMount(() => {
 		if (inputDate) {
 			inputDate.value = `${focused.year}-${(focused.month + 1)
@@ -46,7 +73,7 @@
 			{monthNames[focused.month] + ' ' + focused.year}
 		</h1>
 	</div>
-	<header class:second_calendar={secondCalendar}>
+	<header>
 		<!-- mon tue wed thu fri  -->
 		{#each daysOfWeek as dayName}
 			<h3>{dayName.slice(0, 1)}</h3>
@@ -63,18 +90,7 @@
 				<div
 					role="cell"
 					tabindex="0"
-					on:click={() => {
-						if (selectedDate && !secondSelectedDate) {
-							[secondSelectedDate, _] = focused.handleClick(day);
-							if (secondSelectedDate.totalDays() < selectedDate.totalDays()) {
-								[selectedDate, _] = focused.handleClick(day);
-								secondSelectedDate = undefined;
-							}
-						} else {
-							[selectedDate, _] = focused.handleClick(day);
-							secondSelectedDate = undefined;
-						}
-					}}
+					on:click={() => handleClick(day)}
 					on:keydown={() => {}}
 					class:month={true}
 					class:inside={true}
@@ -87,18 +103,7 @@
 				<div
 					role="cell"
 					tabindex="0"
-					on:click={() => {
-						if (selectedDate && !secondSelectedDate) {
-							[secondSelectedDate, _] = focused.handleClick(day);
-							if (secondSelectedDate.totalDays() < selectedDate.totalDays()) {
-								[selectedDate, _] = focused.handleClick(day);
-								secondSelectedDate = undefined;
-							}
-						} else {
-							[selectedDate, _] = focused.handleClick(day);
-							secondSelectedDate = undefined;
-						}
-					}}
+					on:click={() => handleClick(day)}
 					on:keydown={() => {}}
 					class:active={!(day === 0) && !(day + 1 === numDaysInMonth(focused.year)[focused.month])}
 					class:month={true}
@@ -114,23 +119,12 @@
 				<span
 					role="cell"
 					tabindex="0"
-					on:click={() => {
-						if (selectedDate && !secondSelectedDate) {
-							[secondSelectedDate, _] = focused.handleClick(day);
-							if (secondSelectedDate.totalDays() < selectedDate.totalDays()) {
-								[selectedDate, _] = focused.handleClick(day);
-								secondSelectedDate = undefined;
-							}
-						} else {
-							[selectedDate, _] = focused.handleClick(day);
-							secondSelectedDate = undefined;
-						}
-					}}
+					on:click={() => handleClick(day)}
 					on:keydown={() => {}}
 					class:active={!(day === 0) && !(day + 1 === numDaysInMonth(focused.year)[focused.month])}
 					class:month={true}
 					class:inside={true}
-					class:right={active === 3}
+					class:right={active === 3 || !secondSelectedDate}
 					class:left={active === 2}
 				>
 					<p>
@@ -259,10 +253,4 @@
 		border-top-right-radius: 50% !important;
 		border-bottom-right-radius: 50% !important;
 	}
-	/* header span:last-of-type > p {
-		background-color: white !important;
-	}
-	header span:first-of-type > p {
-		background-color: white !important;
-	} */
 </style>

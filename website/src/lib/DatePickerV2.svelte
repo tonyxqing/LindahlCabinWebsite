@@ -35,7 +35,6 @@
 					focused={focusedDate}
 					bind:selectedDate
 					bind:secondSelectedDate
-					secondCalendar={true}
 				/>
 			{/each}
 		</div>
@@ -46,7 +45,6 @@
 				focused={focused2}
 				bind:selectedDate
 				bind:secondSelectedDate
-				secondCalendar={true}
 			/>
 		</div>
 	{/if}

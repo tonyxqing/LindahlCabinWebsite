@@ -14,6 +14,14 @@ export class CalendarDate {
         }
     }
 
+    toString(): string {
+        return `${this.year}-${this.month+1}-${this.day}`
+    }
+
+    getDate(): Date {
+        return new Date(Date.UTC(this.year, this.month, this.day))
+    }
+
     nextMonth(months: number = 1): CalendarDate {
         if (months === 0) return this;
         if (this.month === 11) this.year += 1;

@@ -1,10 +1,10 @@
 <script lang="ts">
-	import Calendar from '$lib/Calendar.svelte';
 	import { daysOfWeek, monthNames, CalendarDate } from '$lib/client/calendarUtils';
+	import { addVisit } from '$lib/client/serverComms'
 	import DatePickerV2 from './DatePickerV2.svelte';
 	let secondSelectedDate: CalendarDate | undefined;
 	let selectedDate: CalendarDate | undefined;
-
+	export let count = 0;
 	export let selectingDate = false;
 	let guestInput: HTMLInputElement;
 	let guestValue = 1;
@@ -66,7 +66,9 @@
 		role="none"
 		on:click={async () => {
 			if (selectedDate && secondSelectedDate) {
-				await addVisit(selectedDate?.toISOString(), secondSelectedDate?.toISOString(), guestValue);
+				console.log(selectedDate?.getDate().toISOString(), secondSelectedDate?.getDate().toISOString())
+				await addVisit(selectedDate?.getDate().toISOString(), secondSelectedDate?.getDate().toISOString(), guestValue);
+				count++;
 			}
 			selectedDate = undefined;
 			secondSelectedDate = undefined;
