@@ -38,6 +38,10 @@ impl Resolver {
         db::add_user(&self.db, user).await
     }
 
+    pub async fn update_user(&self, filter: UserFilter, update: UserUpdate) -> Result<User, String> {
+        db::update_user(&self.db, filter, update).await
+    }
+
     pub async fn remove_user(&self, filter: UserFilter) -> Result<User, String> {
         db::remove_user(&self.db, filter).await
     }
@@ -47,7 +51,7 @@ impl Resolver {
     }
 
     pub async fn activate_account(&self, id: ObjectId) -> Result<User, String> {
-        db::update_user(&self.db, UserFilter { id: Some(id), ..Default::default() }, UserUpdate {is_active: Some(true), ..Default::default()}).await
+        db::update_user(&self.db, UserFilter { id: Some(id), ..Default::default() }, UserUpdate { ..Default::default()}).await
     }
     pub async fn get_visits(
         &self,

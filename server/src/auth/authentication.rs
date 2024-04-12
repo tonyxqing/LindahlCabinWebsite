@@ -17,7 +17,7 @@ pub struct GoogleClaims {
     email: String,
     email_verified: Option<bool>,
     nbf: Option<i32>,
-    name: Option<String>,
+    name: String,
     picture: Option<String>,
     given_name: Option<String>,
     family_name: Option<String>,
@@ -29,32 +29,49 @@ pub struct GoogleClaims {
 
 #[derive(Serialize)]
 pub struct SessionClaims {
-    foop: String,
-    is_admin: bool,
-    is_owner: bool,
+    id: String,
+    role: String,
+    profile_pic_url: String,
 }
 
-pub async fn create_token() -> Result<String, Box<dyn std::error::Error>> {
+pub async fn create_token(
+    profile_pic_url: String,
+    id: String,
+    role: String,
+) -> Result<String, Box<dyn std::error::Error>> {
     let claims = SessionClaims {
-        foop: "foop".to_string(),
-        is_admin: false,
-        is_owner: false,
+        id,
+        role,
+        profile_pic_url,
     };
-    let token = encode(&Header::default(), &claims, &EncodingKey::from_secret("secret".as_ref()))?;
+    let token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret("secret".as_ref()),
+    )?;
     Ok(token)
 }
 
-pub async fn decode_jwt(token: String) -> Result<(String, String), Box<dyn std::error::Error>> {
+pub async fn decode_jwt(
+    token: String,
+) -> Result<(String, String, String, Option<String>), Box<dyn std::error::Error>> {
     let header = decode_header(&token)?;
     let kid = header.kid.ok_or("Error unwrapping kid")?;
     let key = validate_token(kid).await?;
-    let claims = decode::<GoogleClaims>(&token, &DecodingKey::from_rsa_components(&key.n, &key.e)?, &{
-        let mut v = Validation::new(jsonwebtoken::Algorithm::from(header.alg));
-        v.set_audience(&["130478330472-mar4k4d0kea019930om0m7m0elpoju6o.apps.googleusercontent.com",]);
-        v.validate_exp = false;
-        v
-    },)?.claims;
-    Ok((claims.sub, claims.email))
+    let claims = decode::<GoogleClaims>(
+        &token,
+        &DecodingKey::from_rsa_components(&key.n, &key.e)?,
+        &{
+            let mut v = Validation::new(jsonwebtoken::Algorithm::from(header.alg));
+            v.set_audience(&[
+                "130478330472-mar4k4d0kea019930om0m7m0elpoju6o.apps.googleusercontent.com",
+            ]);
+            v.validate_exp = false;
+            v
+        },
+    )?
+    .claims;
+    Ok((claims.sub, claims.email, claims.name, claims.picture))
 }
 
 pub async fn validate_token(kid: String) -> Result<RsaKey, Box<dyn std::error::Error>> {
@@ -62,7 +79,11 @@ pub async fn validate_token(kid: String) -> Result<RsaKey, Box<dyn std::error::E
         .await?
         .json::<RsaSet>()
         .await?;
-    let key = certs.keys.iter().find(|key| key.kid.eq(&kid)).ok_or("Unable to find kid in Google rsa set".to_string())?;
+    let key = certs
+        .keys
+        .iter()
+        .find(|key| key.kid.eq(&kid))
+        .ok_or("Unable to find kid in Google rsa set".to_string())?;
 
     Ok(key.clone())
 }
@@ -72,7 +93,7 @@ pub async fn verify_user() {
 }
 #[derive(Deserialize)]
 struct RsaSet {
-    keys: Vec<RsaKey>
+    keys: Vec<RsaKey>,
 }
 
 #[derive(Deserialize, Clone)]

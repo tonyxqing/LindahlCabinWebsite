@@ -1,22 +1,49 @@
 use std::collections::{BTreeMap, HashMap};
+use std::default;
 
-use async_graphql::{Context, Object, Json, Data};
-use chrono::{Datelike, NaiveDate};
+use async_graphql::{Context, Data, Json, Object, SimpleObject};
+use chrono::{prelude::*, Months};
+use chrono::{Datelike, NaiveDate, NaiveTime, Timelike, Utc};
 use mongodb::bson::oid::ObjectId;
-use mongodb::bson::{DateTime, Uuid};
+use mongodb::bson::{de, DateTime, Uuid};
+use serde::Serialize;
 
-use crate::db::{MessageEntry, MessageFilter, UserEntry, UserFilter, VisitEntry, VisitUpdate};
-use crate::{gql, auth};
+use crate::db::{
+    MessageEntry, MessageFilter, UserEntry, UserFilter, UserUpdate, VisitEntry, VisitUpdate,
+};
 use crate::model::{self, Reaction, Role, Visit};
 use crate::model::{Message, User};
+use crate::{auth, gql};
 
 use super::{CommentData, MessageData, UserData, VisitData};
-
+use rand::prelude::*;
+fn random_code(length: usize) -> String {
+    let mut rng = rand::thread_rng();
+    let charset: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let mut result: String = String::with_capacity(length);
+    for i in 0..length {
+        let rand_num: usize = rng.gen();
+        let idx = rand_num % charset.len();
+        result.push(charset[idx] as char);
+    }
+    result
+}
 fn last_day_of_month(year: i32, month: u32) -> NaiveDate {
-    NaiveDate::from_ymd_opt(year, month + 1, 1)
+    NaiveDate::from_ymd_opt(year, month, 1)
+        .unwrap()
+        .checked_add_months(Months::new(1))
         .unwrap()
         .pred_opt()
         .unwrap()
+}
+#[derive(SimpleObject, Serialize)]
+pub struct LedgerVisit {
+    id: String,
+    arrival: String,
+    departure: String,
+    posted_on: String,
+    creator_id: String,
+    num_staying: isize,
 }
 
 pub struct Query;
@@ -30,30 +57,72 @@ impl Query {
         res
     }
 
-    async fn make_ledger(&self, ctx: &Context<'_>, date: String) -> Result<BTreeMap<String, Visit>, String> {
+    async fn make_ledger(
+        &self,
+        ctx: &Context<'_>,
+        date: String,
+    ) -> Result<BTreeMap<String, Vec<LedgerVisit>>, String> {
         let r = gql::Resolver::from_context(ctx).await;
         let current_date = DateTime::parse_rfc3339_str(date).map_err(|e| e.to_string())?;
         let datetime = current_date.to_chrono();
-        let end_of_month = last_day_of_month(datetime.year(), datetime.month());
-        let mut ledger: BTreeMap<String, Visit> = BTreeMap::new();
-        let visits: Vec<Visit> = r.get_visits(Some(DateTime::from_chrono(datetime.with_day(1).unwrap())), Some(DateTime::from_chrono(datetime.with_day(29).unwrap()))).await?;
-        println!("{:?}", visits);
+        let end_of_month =
+            last_day_of_month(datetime.year(), datetime.month()).and_time(NaiveTime::default());
+        let mut ledger: BTreeMap<String, Vec<LedgerVisit>> = BTreeMap::new();
+        let visits: Vec<Visit> = r
+            .get_visits(
+                Some(DateTime::from_chrono(datetime.with_day(1).unwrap())),
+                Some(DateTime::from_chrono(
+                    Utc.from_local_datetime(&end_of_month).unwrap(),
+                )),
+            )
+            .await?;
         for i in 0..end_of_month.day0() + 1 {
             let date = datetime.with_day0(i).unwrap().date_naive();
+            let time = NaiveTime::default();
+
+            let mut contained_visits: Vec<LedgerVisit> = Vec::new();
             if !visits.is_empty() {
-                ledger.insert(date.to_string(), visits[0].clone());
+                visits.iter().for_each(|visit| {
+                    let datetime = date.and_time(time);
+                    if visit.arrival.to_chrono() <= Utc.from_utc_datetime(&datetime)
+                        && Utc.from_utc_datetime(&datetime) <= visit.departure.to_chrono()
+                    {
+                        contained_visits.push(LedgerVisit {
+                            id: visit._id.to_string(),
+                            arrival: visit
+                                .arrival
+                                .try_to_rfc3339_string()
+                                .expect("arrival was not able to convert to rfc3339 string"),
+                            departure: visit
+                                .departure
+                                .try_to_rfc3339_string()
+                                .expect("departure was not able to convert to rfc 3339 string"),
+                            posted_on: visit.posted_on.to_string(),
+                            creator_id: visit.creator_id.to_string(),
+                            num_staying: visit.num_staying,
+                        });
+                    }
+                });
+                ledger.insert(date.to_string(), contained_visits);
             }
         }
-        
+
         Ok(ledger)
     }
 
     async fn check_credentials(&self, credentials: String) -> String {
-        let claims = auth::decode_jwt(credentials).await.expect("Error decoding token");
+        let claims = auth::decode_jwt(credentials)
+            .await
+            .expect("Error decoding token");
         format!("claims {:?}", claims)
     }
 
-    async fn validate_account(&self, ctx: &Context<'_>, user_id: String, credentials: String) -> bool {
+    async fn validate_account(
+        &self,
+        ctx: &Context<'_>,
+        user_id: String,
+        credentials: String,
+    ) -> bool {
         true
     }
 
@@ -66,15 +135,19 @@ impl Query {
         email: Option<String>,
         role: Option<Role>,
         sub: Option<String>,
+        access_code: Option<String>,
     ) -> Result<Vec<UserData>, String> {
         let r = gql::Resolver::from_context(ctx).await;
         let filter = UserFilter {
-            id: id.map(|id| ObjectId::parse_str(id).map_err(|e| e.to_string())).transpose()?,
+            id: id
+                .map(|id| ObjectId::parse_str(id).map_err(|e| e.to_string()))
+                .transpose()?,
             name,
             phone,
             email,
             role,
-            sub
+            sub,
+            access_code,
         };
         let users = r
             .get_users(filter)
@@ -94,13 +167,18 @@ impl Query {
     ) -> Result<Vec<MessageData>, String> {
         let ar = gql::Resolver::from_context(ctx).await;
 
-        
         let message_filter = MessageFilter {
-            id: id.map(|id| ObjectId::parse_str(id).map_err(|e| e.to_string())).transpose()?,
+            id: id
+                .map(|id| ObjectId::parse_str(id).map_err(|e| e.to_string()))
+                .transpose()?,
             creator_id,
             content: None,
-            start_time: start_time.map(|start| DateTime::parse_rfc3339_str(start).map_err(|e| e.to_string())).transpose()?,
-            end_time: end_time.map(|end| DateTime::parse_rfc3339_str(end).map_err(|e| e.to_string())).transpose()?,
+            start_time: start_time
+                .map(|start| DateTime::parse_rfc3339_str(start).map_err(|e| e.to_string()))
+                .transpose()?,
+            end_time: end_time
+                .map(|end| DateTime::parse_rfc3339_str(end).map_err(|e| e.to_string()))
+                .transpose()?,
         };
 
         let result = ar
@@ -109,25 +187,7 @@ impl Query {
             .expect("Error retrieving messages from DB");
         Ok(result.iter().map(|m| MessageData(m.clone())).collect())
     }
-    pub async fn get_visits(
-        &self,
-        ctx: &Context<'_>,
-        start: Option<String>,
-        end: Option<String>,
-    ) -> Result<Vec<VisitData>, String> {
-        let r = gql::Resolver::from_context(ctx).await;
-        let s = start.map(|date| DateTime::parse_rfc3339_str(date).expect("Error parsing datetime to get visit"));
-        let e = end.map(|date| DateTime::parse_rfc3339_str(date).expect("Error parsing datetime to get visit"));
-        let result = r
-            .get_visits(s, e)
-            .await
-            .expect("Failed to remove visit from resolver");
 
-        Ok(result
-            .iter()
-            .map(|visit| VisitData(visit.clone()))
-            .collect())
-    }
     pub async fn get_visits(
         &self,
         ctx: &Context<'_>,
@@ -135,8 +195,12 @@ impl Query {
         end: Option<String>,
     ) -> Result<Vec<VisitData>, String> {
         let r = gql::Resolver::from_context(ctx).await;
-        let s = start.map(|date| DateTime::parse_rfc3339_str(date).expect("Error parsing datetime to get visit"));
-        let e = end.map(|date| DateTime::parse_rfc3339_str(date).expect("Error parsing datetime to get visit"));
+        let s = start.map(|date| {
+            DateTime::parse_rfc3339_str(date).expect("Error parsing datetime to get visit")
+        });
+        let e = end.map(|date| {
+            DateTime::parse_rfc3339_str(date).expect("Error parsing datetime to get visit")
+        });
         let result = r
             .get_visits(s, e)
             .await
@@ -150,43 +214,102 @@ impl Query {
 }
 
 fn parse_date(date: Option<String>) -> Result<Option<DateTime>, String> {
-    Ok(date.map(|d| DateTime::parse_rfc3339_str(&d).map_err(|e| e.to_string()))
+    Ok(date
+        .map(|d| DateTime::parse_rfc3339_str(&d).map_err(|e| e.to_string()))
         .transpose()?)
+}
+
+async fn get_sub_and_email_from_credentials(
+    credentials: String,
+) -> Result<(String, String, String, Option<String>), String> {
+    let (sub, email, name, picture) = auth::decode_jwt(credentials)
+        .await
+        .map_err(|_| "Failed to get sub from token")?;
+    //    let existing_user = r
+    //        .get_users(UserFilter {
+    //            sub: Some(sub.clone()),
+    //            ..Default::default()
+    //        })
+    //        .await
+    //        .map_err(|_| "Unable to get users")?;
+    //    if !existing_user.is_empty() {
+    //        let result = r.add_user(&u).await;
+    //        let user: UserData = gql::UserData(result.unwrap().clone());
+    //        Ok(user)
+    //    } else {
+    //        Err("User already exists".to_string())
+    //    }
+
+    Ok((sub, email, name, picture))
 }
 pub struct Mutation;
 
 #[Object]
 impl Mutation {
-    pub async fn add_comment(&self, ctx: &Context<'_>, message_id: String, comment_content: String) -> Result<MessageData, String> {
+    pub async fn add_comment(
+        &self,
+        ctx: &Context<'_>,
+        message_id: String,
+        comment_content: String,
+    ) -> Result<MessageData, String> {
         let r = gql::Resolver::from_context(ctx).await;
         let id = ObjectId::parse_str(message_id).expect("Unable to parse string to oid");
         let result = r.add_comment(id, comment_content).await.expect("");
         Ok(MessageData(result.clone()))
-
     }
 
-    pub async fn remove_comment(&self, ctx: &Context<'_>, message_id: String, comment_id: String) -> Result<MessageData, String> {
+    pub async fn remove_comment(
+        &self,
+        ctx: &Context<'_>,
+        message_id: String,
+        comment_id: String,
+    ) -> Result<MessageData, String> {
         let r = gql::Resolver::from_context(ctx).await;
         let id = ObjectId::parse_str(message_id).expect("Unable to parse string to oid");
         let c_id = ObjectId::parse_str(comment_id).expect("Unable to parse string to oid");
         let result = r.remove_comment(id, c_id).await.expect("");
         Ok(MessageData(result.clone()))
-
     }
-    pub async fn get_session(&self, ctx: &Context<'_>, credentials: String) -> Result<String, String> {
+    pub async fn get_session(
+        &self,
+        ctx: &Context<'_>,
+        credentials: String,
+    ) -> Result<String, String> {
         let r = gql::Resolver::from_context(ctx).await;
         // take a credential token from oauth service
-        let (sub, _) = auth::decode_jwt(credentials).await.map_err(|_| "Error occured decoding jwt")?;
+        let (sub, _, _, picture) = auth::decode_jwt(credentials)
+            .await
+            .map_err(|_| "Error occured decoding jwt")?;
         // check database to see if sub is there
-        let user = r.get_users(UserFilter{sub: Some(sub.clone()), ..Default::default()}).await?.first().cloned();
-        
+        let user = r
+            .get_users(UserFilter {
+                sub: Some(sub.clone()),
+                ..Default::default()
+            })
+            .await?
+            .first()
+            .cloned();
+
         if user.is_none() {
             return Ok("MAKE_ACCOUNT".to_string());
-        } else if !user.unwrap().is_active {
-            return Ok("ACTIVATE_ACCOUNT".to_string());
         }
         // create session token
-        let token = auth::create_token().await.map_err(|_| "Error creating token")?;
+        let u = user.unwrap();
+        let update = r
+            .update_user(
+                UserFilter {
+                    sub: Some(sub.clone()),
+                    ..Default::default()
+                },
+                UserUpdate {
+                    profile_pic: picture.clone(),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        let token = auth::create_token(picture.unwrap(), u._id.to_string(), u.role.to_string())
+            .await
+            .map_err(|_| "Error creating token")?;
 
         // if user not there send token indicating to make an account
         // create account token
@@ -194,32 +317,115 @@ impl Mutation {
         Ok(token)
     }
 
-    pub async fn add_member(
+    pub async fn add_member(&self, ctx: &Context<'_>) -> Result<gql::UserData, String> {
+        let r = gql::Resolver::from_context(ctx).await;
+        let u = UserEntry {
+            name: "".to_string(),
+            email: "".to_string(),
+            phone: "".to_string(),
+            sub: "".to_string(),
+            role: Role::Member,
+            access_code: random_code(8),
+            profile_pic: None,
+        };
+
+        let result = r.add_user(&u).await;
+        let user: UserData = gql::UserData(result.unwrap().clone());
+        Ok(user)
+    }
+
+    pub async fn register_member(
         &self,
         ctx: &Context<'_>,
-        name: String,
-        phone: String,
+        access_code: String,
         credentials: String,
-        
-    ) -> Result<gql::UserData, String> {
+    ) -> Result<String, String> {
         let r = gql::Resolver::from_context(ctx).await;
-        let (sub, email) = auth::decode_jwt(credentials).await.map_err(|_| "Failed to get sub from token")?;
-        let existing_user = r.get_users(UserFilter{sub: Some(sub.clone()), ..Default::default()}).await.map_err(|_| "Unable to get users")?;
-        let u = UserEntry {
-            name,
-            email,
-            phone,
-            sub,
-            role: Role::Member,
-            is_active: false,
+        let filter = UserFilter {
+            access_code: Some(access_code.clone()),
+            ..Default::default()
         };
-        if existing_user.is_empty() {
-            let result = r.add_user(&u).await;
-            let user: UserData = gql::UserData(result.unwrap().clone());
-            Ok(user)
-        } else {
-            Err("User already exists".to_string())
+        let (sub, email, name, picture) = get_sub_and_email_from_credentials(credentials).await?;
+        println!("sub: {sub}, email: {email}");
+
+        let exists = r
+            .get_users(UserFilter {
+                sub: Some(sub.clone()),
+                ..Default::default()
+            })
+            .await?;
+        if !exists.is_empty() {
+            return Err("Account already exists. Cannot create a new one.".to_string());
         }
+
+        let account = r.get_users(filter).await?;
+        println!("found user {:?}", account);
+        if account.is_empty() {
+            return Err("Invalid Access Code".to_string());
+        }
+        r.update_user(
+            UserFilter {
+                id: Some(mongodb::bson::oid::ObjectId::parse_str(account[0]._id.clone()).unwrap()),
+                ..Default::default()
+            },
+            UserUpdate {
+                access_code: Some("".to_string()),
+                sub: Some(sub),
+                name: Some(name),
+                profile_pic: picture.clone(),
+                role: Some(Role::Member),
+                email: Some(email),
+                phone: Some("".to_string()),
+            },
+        )
+        .await?;
+        let token = auth::create_token(
+            picture.unwrap(),
+            account.first().unwrap()._id.to_string(),
+            account.first().unwrap().role.to_string(),
+        )
+        .await;
+        Ok(token.unwrap())
+    }
+
+    pub async fn update_member(
+        &self,
+        ctx: &Context<'_>,
+        filter_id: Option<String>,
+        credentials: Option<String>,
+        phone: Option<String>,
+        name: Option<String>,
+        role: Option<Role>,
+        access_code: Option<String>,
+    ) -> Result<UserData, String> {
+        let r = gql::Resolver::from_context(ctx).await;
+        let filter = UserFilter {
+            id: filter_id.clone().map(|id| ObjectId::parse_str(id).unwrap()),
+            ..Default::default()
+        };
+
+        let access_code: Option<String> = {
+            if filter_id.is_some() && access_code.is_some() {
+                access_code
+            } else {
+                Some("".to_string())
+            }
+        };
+
+        let (sub, email, name, picture) =
+            get_sub_and_email_from_credentials(credentials.unwrap()).await?;
+        let update = UserUpdate {
+            sub: Some(sub),
+            phone,
+            email: Some(email),
+            name: Some(name),
+            role,
+            access_code,
+            profile_pic: picture,
+        };
+
+        let user = r.update_user(filter, update).await?;
+        Ok(UserData(user))
     }
 
     pub async fn remove_member(
@@ -233,16 +439,18 @@ impl Mutation {
                 id: Some(ObjectId::parse_str(id).expect("Failed parsing Object Id")),
                 ..UserFilter::default()
             })
-            .await;
-        let user = gql::UserData(result.expect("Failed to remove user"));
+            .await?;
+        let user = gql::UserData(result);
         Ok(user)
     }
 
     async fn activate_account(&self, ctx: &Context<'_>, id: String) -> Result<UserData, String> {
         let r = gql::Resolver::from_context(ctx).await;
-        let result = r.activate_account(ObjectId::parse_str(id).expect("failed to parse")).await?;
+        let result = r
+            .activate_account(ObjectId::parse_str(id).expect("failed to parse"))
+            .await?;
 
-        Ok(UserData (result))
+        Ok(UserData(result))
     }
 
     async fn add_message(
@@ -263,7 +471,6 @@ impl Mutation {
             .expect("Failed to get messsage from resolver");
         Ok(MessageData(message))
     }
-
 
     pub async fn update_visit(
         &self,
@@ -290,7 +497,7 @@ impl Mutation {
         let result = r
             .update_visit(
                 ObjectId::parse_str(visit_id).expect("Error parsing object id"),
-                visit_update
+                visit_update,
             )
             .await
             .expect("Failed to update visit from resolver");
@@ -355,11 +562,14 @@ impl Mutation {
     pub async fn remove_message(
         &self,
         ctx: &Context<'_>,
-        message_id: String
+        message_id: String,
     ) -> Result<MessageData, String> {
         let r = gql::Resolver::from_context(ctx).await;
         let id = ObjectId::parse_str(message_id).expect("Did not parse id");
-        let result = r.remove_message(id).await.expect("Failed to remove message");
-        Ok(MessageData (result.clone()))
+        let result = r
+            .remove_message(id)
+            .await
+            .expect("Failed to remove message");
+        Ok(MessageData(result.clone()))
     }
 }

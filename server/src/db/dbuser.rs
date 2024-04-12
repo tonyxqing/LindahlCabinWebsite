@@ -1,4 +1,5 @@
 use crate::auth;
+use rand::prelude::*;
 use crate::db::DB;
 use crate::model::{self, Role, User};
 use async_graphql::futures_util::TryStreamExt;
@@ -6,22 +7,27 @@ use mongodb::bson::Document;
 use mongodb::bson::{doc, oid::ObjectId};
 use serde::{Deserialize, Serialize};
 
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserEntry {
     pub email: String,
     pub phone: String,
     pub name: String,
+    pub profile_pic: Option<String>,
     pub role: Role,
-    pub is_active: bool,
     pub sub: String,
+    pub access_code: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UserUpdate {
+    pub sub: Option<String>,
     pub phone: Option<String>,
+    pub email: Option<String>,
     pub name: Option<String>,
+    pub profile_pic: Option<String>,
     pub role: Option<Role>,
-    pub is_active: Option<bool>,
+    pub access_code: Option<String>,
 }
 
 impl UserUpdate {
@@ -34,13 +40,21 @@ impl UserUpdate {
         if let Some(name) = &self.name {
             set.insert("name", name);
         }
+            if let Some(email) = &self.email {
+            set.insert("email", email);
+        }
+            if let Some(sub) = &self.sub {
+            set.insert("sub", sub);
+        }
         if let Some(role) = self.role {
             set.insert("role", mongodb::bson::to_bson(&role).expect("Could not convert to bson"));
         }
-        if let Some(is_active) = self.is_active {
-            set.insert("is_active", is_active);
+        if let Some(profile_pic) = self.profile_pic.clone() {
+            set.insert("profile_pic", profile_pic);
         }
-
+        if let Some(access_code) = self.access_code.clone() {
+            set.insert("access_code", access_code);
+        }
         doc! {"$set": set}
     }
 }
@@ -52,7 +66,8 @@ pub struct UserFilter {
     pub phone: Option<String>,
     pub name: Option<String>,
     pub role: Option<Role>,
-    pub sub: Option<String>
+    pub sub: Option<String>,
+    pub access_code: Option<String>,
 }
 
 impl UserFilter {
@@ -80,6 +95,9 @@ impl UserFilter {
                 mongodb::bson::to_bson::<Role>(&role).expect("failed to convert role to bson"),
             );
         }
+        if let Some(access_code) = self.access_code.clone() {
+            doc.insert("access_code", access_code);
+        }
         doc.to_owned()
     }
 }
@@ -91,29 +109,29 @@ pub async fn add_user(db: &DB, user: &UserEntry) -> Result<User, String> {
         .await
         .expect("Error adding user to database");
 
-
     Ok(User {
         _id: result.inserted_id.to_string(),
         name: user.name.clone(),
         email: user.email.clone(),
         phone: user.phone.clone(),
-        is_active: user.is_active.clone(),
+        profile_pic: None,
         sub: user.sub.clone(),
         role: user.role,
+        access_code: user.access_code.clone(),
     })
 }
 
 pub async fn remove_user(db: &DB, filter: UserFilter) -> Result<User, String> {
     let collection = db.client.collection::<User>("Users");
-
+    
     let filter_doc = filter.to_doc();
 
     let result = collection
         .find_one_and_delete(filter_doc, None)
         .await
         .expect("Error removing user to database")
-        .unwrap();
-    Ok(result)
+        .ok_or(format!("No member with id {:?} was found.", filter.id));
+    result
 }
 
 pub async fn get_users(db: &DB, filter: UserFilter) -> Result<Vec<User>, String> {
@@ -137,8 +155,16 @@ pub async fn update_user(db: &DB, filter: UserFilter, update: UserUpdate) -> Res
     let filter_doc = filter.to_doc();
     let update_doc = update.to_update_doc();
     let collection = db.client.collection::<User>("Users");
-    let result = collection.find_one_and_update(filter_doc, update_doc, None).await.map_err(|e| format!("Unable to update user in db {}", e))?;
-
-    result.ok_or("No user found to update".to_string())
-
+    let result = collection.find_one_and_update(filter_doc, update_doc, None).await.map_err(|e| format!("Unable to update user in db {}", e))?.ok_or(format!("No user found to update. Access code {:?} or User ID {:?} not correct.", filter.access_code, filter.id))?;
+    let update_user = User { 
+       sub: update.sub.unwrap_or(result.sub),
+       email: update.email.unwrap_or(result.email),
+       phone: update.phone.unwrap_or(result.phone),
+       profile_pic: update.profile_pic.or(result.profile_pic),
+       role: update.role.unwrap_or(result.role),
+       access_code: update.access_code.unwrap_or(result.access_code),
+       name: update.name.unwrap_or(result.name),
+       _id: result._id 
+    };
+    Ok(update_user)
 }

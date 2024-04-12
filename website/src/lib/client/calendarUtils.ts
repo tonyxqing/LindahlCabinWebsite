@@ -15,7 +15,7 @@ export class CalendarDate {
     }
 
     toString(): string {
-        return `${this.year}-${this.month+1}-${this.day}`
+        return `${this.year}-${(this.month+1).toString().padStart(2, '0')}-${this.day.toString().padStart(2, '0')}`
     }
 
     getDate(): Date {
@@ -38,7 +38,7 @@ export class CalendarDate {
 
     totalDays(): number {
         let days = 0;
-        let leapyears = Math.floor((this.year - 1 - 1972) / 4);
+        const leapyears = Math.floor((this.year - 1 - 1972) / 4);
         days += leapyears * 366;
         days += (this.year - 1972 - leapyears) * 365;
         days += totalDaysInMonth(this.year)[this.month] + this.day;
@@ -50,7 +50,7 @@ export class CalendarDate {
     }
 
     endCalendarOffset(): number {
-        let extraSquares = this.numDaysInMonth() + this.beginningCalendarOffset() > 34 ? 0 : 7;
+        const extraSquares = this.numDaysInMonth() + this.beginningCalendarOffset() > 34 ? 0 : 7;
         return (
             7 -
             ((this.beginningCalendarOffset() + numDaysInMonth(this.year)[this.month]) % 7) +

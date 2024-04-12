@@ -11,7 +11,7 @@ pub struct DB {
 
 impl DB {
     pub async fn new() -> Self {
-        let client_options = ClientOptions::parse("mongodb://mongodb:27017")
+        let client_options = ClientOptions::parse("mongodb://localhost:27017")
             .await
             .expect("Error occured with mongodb client options");
         let client = Client::with_options(client_options).expect("Can't connect to mongodb client");

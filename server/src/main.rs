@@ -49,15 +49,13 @@ async fn main() -> std::io::Result<()> {
     println!("GraphiQL IDE: http://localhost:8000");
     let r = Resolver::new().await;
     let ar = Arc::new(r);
-    println!("Building Schema");
     let schema = Schema::build(gql::Query, gql::Mutation, EmptySubscription)
     .data(ar.clone())
     .finish();
 
     HttpServer::new(move || {
-        println!("Starting Http Server");
         App::new()
-            .wrap(Cors::default().allow_any_origin().send_wildcard())
+            .wrap(Cors::permissive())
             .app_data(Data::new(schema.clone()))
             .app_data(Data::new(ar.clone()))            
             .service(web::resource("/").guard(guard::Post()).to(index))

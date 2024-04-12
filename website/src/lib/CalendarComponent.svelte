@@ -1,28 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { Visit } from '$lib/client/serverComms';
 	import { monthNames, daysOfWeek, CalendarDate, numDaysInMonth } from '$lib/client/calendarUtils';
+	import FaUser from 'svelte-icons/fa/FaUser.svelte';
+	import type { LedgerEntry } from '$lib';
 	export let selectedDate: CalendarDate | undefined;
 	export let secondSelectedDate: CalendarDate | undefined;
 	export let focused: CalendarDate;
-	export let noSelect = false;
-	export let visits: Visit[] = [];
+	export let ledger: {[key: string]: LedgerEntry[]};
 	let inputDate: HTMLInputElement;
 	let secondInputDate: HTMLInputElement;
 
-	function makeLedger() {
-		let ledger: { [key: string]: unknown } = {};
-		Array(focused.numDaysInMonth())
-			.fill(0)
-			.forEach((_, day) => (ledger[`${focused.year}-${focused.month + 1}-${day + 1}`] = []));
-		for (let visit of visits) {
-			let arrival = Date.parse(visit.arrival);
-			let departure = Date.parse(visit.departure);
-			
-		}
-	}
-	makeLedger()
-	$: console.log(visits);
 	$: isActive = (day: number): number => {
 		if (selectedDate) {
 			const date = new Date(focused.year, focused.month, day + 1);
@@ -44,12 +31,8 @@
 		return 0;
 	};
 	$: handleClick = (day: number): void => {
-		if (
-			!noSelect &&
-			selectedDate &&
-			(!secondSelectedDate ||
-				(secondSelectedDate && secondSelectedDate!.totalDays() < selectedDate!.totalDays()))
-		) {
+		let date = new CalendarDate(focused.month, day, focused.year);
+		if (!ledger && selectedDate && !secondSelectedDate && date.totalDays() > selectedDate.totalDays()) {
 			[secondSelectedDate] = focused.handleClick(day);
 		} else {
 			[selectedDate] = focused.handleClick(day);
@@ -60,9 +43,7 @@
 
 	onMount(() => {
 		if (inputDate) {
-			inputDate.value = `${focused.year}-${(focused.month + 1)
-				.toString()
-				.padStart(2, '0')}-${focused.day.toString().padStart(2, '0')}`;
+			inputDate.value = focused.toString();
 		}
 	});
 </script>
@@ -86,52 +67,47 @@
 
 		{#each Array(focused.numDaysInMonth()).fill(0) as _, day}
 			{@const active = isActive(day)}
-			{#if active === 0}
-				<div
-					role="cell"
-					tabindex="0"
-					on:click={() => handleClick(day)}
-					on:keydown={() => {}}
-					class:month={true}
-					class:inside={true}
-				>
-					<p>
-						{day + 1}
-					</p>
-				</div>
-			{:else if active === 1}
-				<div
-					role="cell"
-					tabindex="0"
-					on:click={() => handleClick(day)}
-					on:keydown={() => {}}
-					class:active={!(day === 0) && !(day + 1 === numDaysInMonth(focused.year)[focused.month])}
-					class:month={true}
-					class:inside={true}
-					class:invert={day === 0}
-					class:invert-end={day + 1 === numDaysInMonth(focused.year)[focused.month]}
-				>
-					<p>
-						{day + 1}
-					</p>
-				</div>
-			{:else}
-				<span
-					role="cell"
-					tabindex="0"
-					on:click={() => handleClick(day)}
-					on:keydown={() => {}}
-					class:active={!(day === 0) && !(day + 1 === numDaysInMonth(focused.year)[focused.month])}
-					class:month={true}
-					class:inside={true}
-					class:right={active === 3 || !secondSelectedDate}
-					class:left={active === 2}
-				>
-					<p>
-						{day + 1}
-					</p>
-				</span>
-			{/if}
+			<!-- svelte-ignore a11y-click-events-have-key-events -->
+			<div
+				role="cell"
+				tabindex="0"
+				on:click={() => handleClick(day)}
+				class:active={active === 1 &&
+					!(day === 0) &&
+					!(day + 1 === numDaysInMonth(focused.year)[focused.month])}
+				class:right={active === 3 || (active === 2 && !secondSelectedDate)}
+				class:left={active === 2}
+				class:invert={active === 1 && day === 0}
+				class:invert-end={active === 1 && day + 1 === numDaysInMonth(focused.year)[focused.month]}
+				class:month={true}
+				class:inside={true}
+			>
+				{#if ledger}
+					{@const day_string = `${focused.year}-${(focused.month + 1)
+						.toString()
+						.padStart(2, '0')}-${(day + 1).toString().padStart(2, '0')}`}
+
+						{#if Array.isArray(ledger[day_string]) && ledger[day_string].length}
+							<div style="position: absolute; top: 0; left: 0;">
+								{#each ledger[day_string] as entry, i}
+									<div style={`display: flex; gap: 8px; align-items:center;`}>
+										<p
+											style={`margin: 0; border-radius: 50%; aspectRatio: 1, width: 8px; color: red;`}
+										>
+											{entry.num_staying}
+										</p>
+										<div style="height: 11px; width: 11px; translate: 0px -4px;">
+											<FaUser />
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
+				{/if}
+				<p>
+					{day + 1}
+				</p>
+			</div>
 		{/each}
 		<!-- blank days at the end of the month -->
 		{#each Array(focused.endCalendarOffset()).fill(0) as _, day}
@@ -212,6 +188,8 @@
 		padding: 4px;
 		min-height: 20px;
 		min-width: 20px;
+		position: relative;
+		border: 1px solid black;
 	}
 	.month > p {
 		font-size: 12px;

@@ -1,7 +1,7 @@
 use crate::{db, model::Visit};
 use actix_web::cookie::time::Date;
 use async_graphql::futures_util::TryStreamExt;
-use mongodb::bson::{doc, oid::ObjectId, DateTime};
+use mongodb::bson::{doc, Document, oid::ObjectId, DateTime};
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VisitEntry {
@@ -86,8 +86,15 @@ pub async fn get_visits(
     end: Option<DateTime>,
 ) -> Result<Vec<Visit>, String> {
     let collection = db.client.collection::<Visit>("Visits");
+    let filter: Document = if start.is_some() && end.is_some() {
+            doc! { "$or": [{"arrival" : {"$lt": end}}, {"departure": {"$gt": start}}]}
+        }
+        else {
+            doc! {}
+        };
+    
     let mut cursor = collection
-        .find(doc! { "start_time" : {"$lt": end}, "end_time": {"$gt": start}}, None)
+        .find(filter, None)
         .await
         .expect("Failed to get visits from db");
     let mut visits = Vec::new();

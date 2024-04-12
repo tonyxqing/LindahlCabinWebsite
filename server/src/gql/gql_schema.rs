@@ -1,5 +1,6 @@
 use crate::model::{self, Reaction, ReactionEmoji};
 use async_graphql::Object;
+use serde::Serialize;
 
 pub struct UserData(pub model::User);
 
@@ -20,14 +21,18 @@ impl UserData {
     async fn role(&self) -> &model::Role {
         &self.0.role
     }
-    async fn is_active(&self) -> bool {
-        self.0.is_active
+    async fn profile_pic(&self) -> Option<String> {
+        self.0.profile_pic.clone()
     }
     async fn sub(&self) -> &str {
         &self.0.sub
     }
+    async fn access_code(&self) -> &str {
+        &self.0.access_code
+    }
 }
 
+#[derive(Serialize)]
 pub struct VisitData(pub model::Visit);
 #[Object]
 impl VisitData {

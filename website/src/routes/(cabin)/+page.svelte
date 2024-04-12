@@ -5,9 +5,15 @@
 	import CalendarComponent from '$lib/CalendarComponent.svelte';
 	import { CalendarDate } from '$lib/client/calendarUtils';
 	import VisitContainer from '$lib/client/VisitContainer.svelte';
+	import { onMount } from 'svelte';
+	import { redirect } from '@sveltejs/kit';
+	import { goto } from '$app/navigation';
 	let selectingDate: boolean;
 	// The current page on the calendar
 	let count = 0;
+//	onMount(() => {
+//		goto('login')
+//	}) 
 </script>
 
 <section
@@ -19,9 +25,7 @@
 	<!-- <DatePicker bind:selectingDate bind:selectedDate bind:secondSelectedDate /> -->
 	<!-- <DatePickerV2 bind:selectingDate bind:focused bind:selectedDate bind:secondSelectedDate/> -->
 	<DatePicker bind:selectingDate bind:count />
-	{#key count}
-	    <VisitContainer/>
-	{/key}
+
 </section>
 
 <style>
@@ -37,13 +41,12 @@
 			Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 		background-color: #ffffff;
 	}
-	:global(button) {
-		background-color: #f9f9f9;
-	}
+	
 
 	section {
 		width: 100%;
 		height: 100%;
+		margin: auto;
 		gap: 24px;
 		
 	}
