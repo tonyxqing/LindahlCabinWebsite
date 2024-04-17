@@ -6,7 +6,7 @@
 	export let selectedDate: CalendarDate | undefined;
 	export let secondSelectedDate: CalendarDate | undefined;
 	export let focused: CalendarDate;
-	export let ledger: {[key: string]: LedgerEntry[]};
+	export let ledger: { [key: string]: LedgerEntry[] };
 	let inputDate: HTMLInputElement;
 	let secondInputDate: HTMLInputElement;
 
@@ -32,7 +32,12 @@
 	};
 	$: handleClick = (day: number): void => {
 		let date = new CalendarDate(focused.month, day, focused.year);
-		if (!ledger && selectedDate && !secondSelectedDate && date.totalDays() > selectedDate.totalDays()) {
+		if (
+			!ledger &&
+			selectedDate &&
+			!secondSelectedDate &&
+			date.totalDays() > selectedDate.totalDays()
+		) {
 			[secondSelectedDate] = focused.handleClick(day);
 		} else {
 			[selectedDate] = focused.handleClick(day);
@@ -75,38 +80,56 @@
 				class:active={active === 1 &&
 					!(day === 0) &&
 					!(day + 1 === numDaysInMonth(focused.year)[focused.month])}
-				class:right={active === 3 || (active === 2 && !secondSelectedDate)}
-				class:left={active === 2}
+				class:right={!ledger && (active === 3 || (active === 2 && !secondSelectedDate))}
+				class:left={!ledger && active === 2}
 				class:invert={active === 1 && day === 0}
 				class:invert-end={active === 1 && day + 1 === numDaysInMonth(focused.year)[focused.month]}
 				class:month={true}
 				class:inside={true}
 			>
+				<div class="day_of_month_tile">
+					{#if day === 0}
+						<p>{monthNames[focused.month].substring(0, 3)}</p>
+					{/if}
+					<p>
+						{day + 1}
+					</p>
+				</div>
 				{#if ledger}
 					{@const day_string = `${focused.year}-${(focused.month + 1)
 						.toString()
 						.padStart(2, '0')}-${(day + 1).toString().padStart(2, '0')}`}
-
-						{#if Array.isArray(ledger[day_string]) && ledger[day_string].length}
-							<div style="position: absolute; top: 0; left: 0;">
-								{#each ledger[day_string] as entry, i}
-									<div style={`display: flex; gap: 8px; align-items:center;`}>
-										<p
-											style={`margin: 0; border-radius: 50%; aspectRatio: 1, width: 8px; color: red;`}
-										>
-											{entry.num_staying}
+					{#if Array.isArray(ledger[day_string]) && ledger[day_string].length}
+						<div style="width: 100%">
+							{#each ledger[day_string] as entry, i}
+								{#if ledger[day_string].length <= 2 || i === 0}
+									<div class="ledger_visit">
+										<img
+											class="ledger_visit_image"
+											src={entry.profile_pic}
+											alt="avatar of visitor"
+										/>
+										<p class="ledger_visit_creator">
+											{entry.name}
 										</p>
-										<div style="height: 11px; width: 11px; translate: 0px -4px;">
+									</div>
+								{:else if i === 1}
+									{@const str = ledger[day_string].reduce((agg, curr) => {
+										return agg + curr.num_staying;
+									}, 0) - 1}
+									<div class="ledger_visit">
+										<p class="ledger_visit_creator">
+											+{str}
+										</p>
+										<div style="display: flex; height: 10px; color: red;">
 											<FaUser />
 										</div>
 									</div>
-								{/each}
-							</div>
-						{/if}
+								{/if}
+							{/each}
+						</div>
+					{/if}
 				{/if}
-				<p>
-					{day + 1}
-				</p>
 			</div>
 		{/each}
 		<!-- blank days at the end of the month -->
@@ -124,6 +147,38 @@
 		display: flex;
 		justify-content: center;
 		flex-direction: column;
+	}
+	.ledger_visit {
+		display: flex;
+		flex: 1;
+		gap: 8px;
+		align-items: center;
+		border: 1px solid aliceblue;
+		padding: 4px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.ledger_visit_image {
+		height: 14px;
+		aspect-ratio: 1;
+		border-radius: 50%;
+	}
+
+	.ledger_visit_creator {
+		font-size: 9px;
+		margin: 0;
+		border-radius: 50%;
+		color: red;
+	}
+	.day_of_month_tile {
+		display: flex;
+		gap: 4px;
+		justify-content: start;
+		width: 100%;
+	}
+	.day_of_month_tile > p {
+		margin: 2px;
 	}
 
 	.month_navigation {
@@ -180,16 +235,12 @@
 		aspect-ratio: 1;
 		display: flex;
 		flex: 1;
-		justify-content: center;
-		align-items: center;
-		background-color: transparent;
-		margin-top: 2px;
-		margin-bottom: 2px;
 		padding: 4px;
 		min-height: 20px;
 		min-width: 20px;
-		position: relative;
+		background-color: white;
 		border: 1px solid black;
+		flex-direction: column;
 	}
 	.month > p {
 		font-size: 12px;
@@ -215,7 +266,7 @@
 		align-items: center;
 	}
 	.inside {
-		background-color: transparent;
+		background-color: white;
 	}
 	.active {
 		background-color: blue;

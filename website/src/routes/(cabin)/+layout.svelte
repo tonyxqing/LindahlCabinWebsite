@@ -35,6 +35,7 @@
 	<a href="/">Home</a>
 	<a href="/schedule">Schedule</a>
 	<a href="/blog">Blog</a>
+	<div>
 	<button
 		class="menu"
 		on:mouseover={() => {
@@ -70,6 +71,7 @@
 			</li>
 		</ul>
 	{/if}
+	</div>
 </nav>
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
@@ -123,7 +125,7 @@
 		list-style-type: none;
 		padding: 0;
 		margin: 0;
-		top: 50px;
+		right: 0;
 		z-index: 999;
 	}
 	.drop_down_menu li:hover {

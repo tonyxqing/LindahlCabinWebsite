@@ -145,7 +145,6 @@ pub async fn get_users(db: &DB, filter: UserFilter) -> Result<Vec<User>, String>
         .expect("Failed getting cursor for collection");
     let mut users = Vec::<User>::new();
     while let Some(user) = cursor.try_next().await.expect("Users") {
-        println!("User: {:?}", &user);
         users.push(user);
     }
     Ok(users)

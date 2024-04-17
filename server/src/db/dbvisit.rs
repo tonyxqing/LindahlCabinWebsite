@@ -70,9 +70,9 @@ pub async fn update_visit(
     Ok(result.unwrap())
 }
 
-pub async fn remove_visit(db: &db::DB, visit_id: ObjectId) -> Result<Visit, String> {
+pub async fn remove_visit(db: &db::DB, visit_id: ObjectId, creator_id: String) -> Result<Visit, String> {
     let collection = db.client.collection::<Visit>("Visits");
-    let filter = doc! {"_id": visit_id};
+    let filter = doc! {"_id": visit_id, "creator_id": creator_id};
     let result = collection
         .find_one_and_delete(filter, None)
         .await

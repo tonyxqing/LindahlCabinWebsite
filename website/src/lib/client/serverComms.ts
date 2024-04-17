@@ -4,12 +4,12 @@ import { writable } from "svelte/store";
 export const auth = writable<{id?: string, profile_pic_url?: string, role?: string}>({id: undefined, profile_pic_url: undefined, role: undefined})
 
 const gqlQuery = (queryString: string) => {
-  const authToken = localStorage.getItem('authToken');
+  const authToken = localStorage.getItem('sessionToken');
   return fetch("http://localhost:8000", {
     method: "post",
-    headers: {
+    headers: authToken ? {
       "Authorization": `Bearer ${authToken}`,
-    },
+    } : {},
     body: JSON.stringify({ query: queryString }),
   });
 };
@@ -34,9 +34,8 @@ export const addVisit = async (
   arrival: string,
   departure: string,
   numStaying: number,
-  id?: string,
 ) => {  
-  const query = `mutation {addVisit(creatorId: "${id}" arrival: "${arrival}"
+  const query = `mutation {addVisit(arrival: "${arrival}"
     departure:"${departure}" numStaying:${numStaying}){id}}`;
   await gqlQuery(query);
 };
@@ -60,8 +59,20 @@ export const registerMember = async (access_code: string, credentials: string) =
     const query = `mutation{registerMember(accessCode:"${access_code}" credentials:"${credentials}")}`;
     return (await gqlQuery(query)).json();
 }
-
-export const getMembers = async () => {
+export type UserDict = {
+  [name: string]: Omit<UserDTO, 'id'>;
+}
+export type UserDTO = {
+			id: string;
+			name: string;
+			email: string;
+			phone: string;
+			role: string;
+			sub: string;
+			profilePic: string;
+			accessCode: string;
+		}
+export const getMembers = async (): Promise<[UserDTO]> => {
     const query = `query{ getUsers {	id name email phone role sub profilePic accessCode }}`;
     const request = await gqlQuery(query);
     const response = await request.json();
@@ -86,6 +97,8 @@ export const removeVisit = async (id: string) => {
 export interface Message {
   id: string;
   creatorId: string;
+  name: string;
+  profilePic: string;
   content: string;
   comments: Comment[];
   reactions: string[];
@@ -100,15 +113,15 @@ export interface Comment {
   reactions: string[];
 }
 
-export const addMessage = async (creatorId: string, content: string) => {
+export const addMessage = async (content: string) => {
   const query =
-    `mutation {addMessage(creatorId: "${creatorId}" content: "${content}") {id creatorId content seenBy postedOn}}`;
+    `mutation {addMessage(content: "${content}") {id creatorId content seenBy postedOn}}`;
   await gqlQuery(query);
 };
 
 export const getMessages = async (): Promise<Message[]> => {
   const query =
-    `query { getMessages {id creatorId comments{id creatorId content reactions{id creatorId emoji}} reactions{id creatorId emoji} content seenBy postedOn}}`;
+    `query { getMessages {id creatorId comments{id creatorId content name profilePic reactions{id creatorId emoji}} reactions{id creatorId emoji} content seenBy postedOn name profilePic}}`;
   const request = await gqlQuery(query);
   const result = await request.json();
   return result.data.getMessages;

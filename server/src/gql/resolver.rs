@@ -73,19 +73,19 @@ impl Resolver {
         db::update_visit(&self.db, visit_id, visit).await
     }
 
-    pub async fn remove_visit(&self, visit_id: ObjectId) -> Result<Visit, String> {
-        db::remove_visit(&self.db, visit_id).await
+    pub async fn remove_visit(&self, visit_id: ObjectId, creator_id: String) -> Result<Visit, String> {
+        db::remove_visit(&self.db, visit_id, creator_id).await
     }
 
-    pub async fn remove_message(&self, message_id: ObjectId) -> Result<Message, String> {
-        db::remove_message(&self.db, message_id).await
+    pub async fn remove_message(&self, message_id: ObjectId, creator_id: String) -> Result<Message, String> {
+        db::remove_message(&self.db, message_id, creator_id).await
     }
     
-    pub async fn add_comment(&self, message_id: ObjectId, comment_content: String) -> Result<Message, String> {
-        db::add_comment(&self.db, message_id, comment_content).await
+    pub async fn add_comment(&self, message_id: ObjectId, comment_content: String, creator_id: String) -> Result<Message, String> {
+        db::add_comment(&self.db, message_id, comment_content, creator_id).await
     }
 
-    pub async fn remove_comment(&self, message_id: ObjectId, comment_id: ObjectId) -> Result<Message, String> {
-        db::remove_comment(&self.db, message_id, comment_id).await
+    pub async fn remove_comment(&self, message_id: ObjectId, comment_id: ObjectId, creator_id: String) -> Result<Message, String> {
+        db::remove_comment(&self.db, message_id, comment_id, creator_id).await
     }
 }

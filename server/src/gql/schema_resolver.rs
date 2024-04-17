@@ -1,13 +1,14 @@
 use std::collections::{BTreeMap, HashMap};
 use std::default;
 
-use async_graphql::{Context, Data, Json, Object, SimpleObject};
+use async_graphql::{Context, Object, SimpleObject};
 use chrono::{prelude::*, Months};
 use chrono::{Datelike, NaiveDate, NaiveTime, Timelike, Utc};
 use mongodb::bson::oid::ObjectId;
 use mongodb::bson::{de, DateTime, Uuid};
 use serde::Serialize;
 
+use crate::auth::AuthResult;
 use crate::db::{
     MessageEntry, MessageFilter, UserEntry, UserFilter, UserUpdate, VisitEntry, VisitUpdate,
 };
@@ -43,6 +44,8 @@ pub struct LedgerVisit {
     departure: String,
     posted_on: String,
     creator_id: String,
+    profile_pic: String,
+    name: String,
     num_staying: isize,
 }
 
@@ -68,6 +71,7 @@ impl Query {
         let end_of_month =
             last_day_of_month(datetime.year(), datetime.month()).and_time(NaiveTime::default());
         let mut ledger: BTreeMap<String, Vec<LedgerVisit>> = BTreeMap::new();
+        let mut memoizedUsers: HashMap<String, User> = HashMap::new();
         let visits: Vec<Visit> = r
             .get_visits(
                 Some(DateTime::from_chrono(datetime.with_day(1).unwrap())),
@@ -82,17 +86,37 @@ impl Query {
 
             let mut contained_visits: Vec<LedgerVisit> = Vec::new();
             if !visits.is_empty() {
-                visits.iter().for_each(|visit| {
+                for visit in visits.iter() {
                     let datetime = date.and_time(time);
                     if visit.arrival.to_chrono() <= Utc.from_utc_datetime(&datetime)
                         && Utc.from_utc_datetime(&datetime) <= visit.departure.to_chrono()
                     {
+                        let user = if memoizedUsers.contains_key(visit.creator_id.as_str()) {
+                            memoizedUsers
+                                .get(visit.creator_id.as_str())
+                                .unwrap()
+                                .to_owned()
+                        } else {
+                            let u = r
+                                .get_users(UserFilter {
+                                    id: ObjectId::parse_str(visit.creator_id.clone()).ok(),
+                                    ..Default::default()
+                                })
+                                .await?
+                                .first()
+                                .unwrap()
+                                .clone();
+                            memoizedUsers.insert(visit.creator_id.clone(), u.clone());
+                            u
+                        };
                         contained_visits.push(LedgerVisit {
                             id: visit._id.to_string(),
                             arrival: visit
                                 .arrival
                                 .try_to_rfc3339_string()
                                 .expect("arrival was not able to convert to rfc3339 string"),
+                            profile_pic: user.profile_pic.clone().unwrap(),
+                            name: user.name.clone(),
                             departure: visit
                                 .departure
                                 .try_to_rfc3339_string()
@@ -102,7 +126,7 @@ impl Query {
                             num_staying: visit.num_staying,
                         });
                     }
-                });
+                }
                 ledger.insert(date.to_string(), contained_visits);
             }
         }
@@ -137,6 +161,10 @@ impl Query {
         sub: Option<String>,
         access_code: Option<String>,
     ) -> Result<Vec<UserData>, String> {
+        let auth = ctx
+            .data::<AuthResult>()
+            .map_err(|e| "Error occurred retrieving account from token".to_string())?;
+        println!("{:?}", auth);
         let r = gql::Resolver::from_context(ctx).await;
         let filter = UserFilter {
             id: id
@@ -252,9 +280,13 @@ impl Mutation {
         message_id: String,
         comment_content: String,
     ) -> Result<MessageData, String> {
+        let creator_id = AuthResult::from_context(ctx, Role::Admin).or(AuthResult::from_context(ctx, Role::Owner)).or(AuthResult::from_context(ctx, Role::Member))?;
         let r = gql::Resolver::from_context(ctx).await;
         let id = ObjectId::parse_str(message_id).expect("Unable to parse string to oid");
-        let result = r.add_comment(id, comment_content).await.expect("");
+        let result = r
+            .add_comment(id, comment_content, creator_id)
+            .await
+            .expect("");
         Ok(MessageData(result.clone()))
     }
 
@@ -264,10 +296,12 @@ impl Mutation {
         message_id: String,
         comment_id: String,
     ) -> Result<MessageData, String> {
+        let creator_id = AuthResult::from_context(ctx, Role::Admin).or(AuthResult::from_context(ctx, Role::Owner)).or(AuthResult::from_context(ctx, Role::Member))?;
         let r = gql::Resolver::from_context(ctx).await;
+
         let id = ObjectId::parse_str(message_id).expect("Unable to parse string to oid");
         let c_id = ObjectId::parse_str(comment_id).expect("Unable to parse string to oid");
-        let result = r.remove_comment(id, c_id).await.expect("");
+        let result = r.remove_comment(id, c_id, creator_id).await.expect("Failed to remove comment");
         Ok(MessageData(result.clone()))
     }
     pub async fn get_session(
@@ -318,6 +352,7 @@ impl Mutation {
     }
 
     pub async fn add_member(&self, ctx: &Context<'_>) -> Result<gql::UserData, String> {
+        AuthResult::from_context(ctx, Role::Admin).or(AuthResult::from_context(ctx, Role::Owner))?;
         let r = gql::Resolver::from_context(ctx).await;
         let u = UserEntry {
             name: "".to_string(),
@@ -394,10 +429,10 @@ impl Mutation {
         filter_id: Option<String>,
         credentials: Option<String>,
         phone: Option<String>,
-        name: Option<String>,
         role: Option<Role>,
         access_code: Option<String>,
     ) -> Result<UserData, String> {
+        AuthResult::from_context(ctx, Role::Admin).or(AuthResult::from_context(ctx, Role::Owner))?;
         let r = gql::Resolver::from_context(ctx).await;
         let filter = UserFilter {
             id: filter_id.clone().map(|id| ObjectId::parse_str(id).unwrap()),
@@ -433,6 +468,7 @@ impl Mutation {
         ctx: &Context<'_>,
         id: String,
     ) -> Result<gql::UserData, String> {
+        AuthResult::from_context(ctx, Role::Admin).or(AuthResult::from_context(ctx, Role::Owner))?;
         let r = gql::Resolver::from_context(ctx).await;
         let result = r
             .remove_user(UserFilter {
@@ -456,9 +492,9 @@ impl Mutation {
     async fn add_message(
         &self,
         ctx: &Context<'_>,
-        creator_id: String,
         content: String,
     ) -> Result<MessageData, String> {
+        let creator_id = AuthResult::from_context(ctx, Role::Admin).or(AuthResult::from_context(ctx, Role::Owner)).or(AuthResult::from_context(ctx, Role::Member))?;
         let ar = gql::Resolver::from_context(ctx).await;
         let message_entry = MessageEntry {
             creator_id: creator_id.clone(),
@@ -475,16 +511,16 @@ impl Mutation {
     pub async fn update_visit(
         &self,
         ctx: &Context<'_>,
-        visit_id: String,
-        creator_id: Option<String>,
-        arrival: Option<String>,
-        departure: Option<String>,
+        visit_id: String, 
         posted_on: Option<String>,
         num_staying: Option<isize>,
+        arrival: Option<String>,
+        departure: Option<String>
     ) -> Result<VisitData, String> {
+        let creator_id = AuthResult::from_context(ctx, Role::Admin).or(AuthResult::from_context(ctx, Role::Owner)).or(AuthResult::from_context(ctx, Role::Member))?;
         let r = gql::Resolver::from_context(ctx).await;
         let visit_update = VisitUpdate {
-            creator_id,
+            creator_id: Some(creator_id),
             arrival: parse_date(arrival)?,
             departure: parse_date(departure)?,
             posted_on: if let Some(time) = posted_on {
@@ -507,11 +543,11 @@ impl Mutation {
     pub async fn add_visit(
         &self,
         ctx: &Context<'_>,
-        creator_id: String,
         arrival: String,
         departure: String,
         num_staying: isize,
-    ) -> Result<VisitData, String> {
+    ) -> Result<VisitData, String> { 
+        let creator_id = AuthResult::from_context(ctx, Role::Admin).or(AuthResult::from_context(ctx, Role::Owner)).or(AuthResult::from_context(ctx, Role::Member))?;
         let r = gql::Resolver::from_context(ctx).await;
         let result = r
             .add_visit(&VisitEntry {
@@ -530,9 +566,11 @@ impl Mutation {
         ctx: &Context<'_>,
         visit_id: String,
     ) -> Result<VisitData, String> {
+        let creator_id = AuthResult::from_context(ctx, Role::Admin).or(AuthResult::from_context(ctx, Role::Owner)).or(AuthResult::from_context(ctx, Role::Member))?;
         let r = gql::Resolver::from_context(ctx).await;
+        let v_id = ObjectId::parse_str(visit_id).expect("Error parsing object id");
         let result = r
-            .remove_visit(ObjectId::parse_str(visit_id).expect("Error parsing object id"))
+            .remove_visit(v_id, creator_id)
             .await
             .expect("Failed to remove visit from resolver");
         Ok(VisitData(result))
@@ -542,9 +580,9 @@ impl Mutation {
         &self,
         ctx: &Context<'_>,
         id: String,
-        creator_id: String,
         content: Option<String>,
     ) -> Result<MessageData, String> {
+        let creator_id = AuthResult::from_context(ctx, Role::Admin).or(AuthResult::from_context(ctx, Role::Owner)).or(AuthResult::from_context(ctx, Role::Member))?;
         let r = gql::Resolver::from_context(ctx).await;
         let filter = MessageFilter {
             id: Some(ObjectId::parse_str(id).expect("Did not parse id")),
@@ -564,10 +602,11 @@ impl Mutation {
         ctx: &Context<'_>,
         message_id: String,
     ) -> Result<MessageData, String> {
+        let creator_id = AuthResult::from_context(ctx, Role::Admin).or(AuthResult::from_context(ctx, Role::Owner)).or(AuthResult::from_context(ctx, Role::Member))?;
         let r = gql::Resolver::from_context(ctx).await;
         let id = ObjectId::parse_str(message_id).expect("Did not parse id");
         let result = r
-            .remove_message(id)
+            .remove_message(id, creator_id)
             .await
             .expect("Failed to remove message");
         Ok(MessageData(result.clone()))

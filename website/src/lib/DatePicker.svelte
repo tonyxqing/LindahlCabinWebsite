@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { daysOfWeek, monthNames, CalendarDate } from '$lib/client/calendarUtils';
 	import { addVisit, auth } from '$lib/client/serverComms'
 	import DatePickerV2 from './DatePickerV2.svelte';
@@ -73,6 +74,7 @@
 			}
 			selectedDate = undefined;
 			secondSelectedDate = undefined;
+			goto('/schedule')
 		}}
 		class="container schedule_trip"
 	>

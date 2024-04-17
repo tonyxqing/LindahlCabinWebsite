@@ -20,4 +20,6 @@ export type LedgerEntry = {
     };
     creator_id: string;
     num_staying: number;
+    profile_pic: string;
+    name: string;
 };

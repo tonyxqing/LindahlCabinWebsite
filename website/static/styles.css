@@ -6,3 +6,30 @@ body {
     display: flex;
     flex-direction: column;
 }
+
+:root {
+    --main-button: rgb(167, 0, 0);
+    --confirm-button: rgba(28, 208, 29, 0.52);
+    --calendar-color: #cfbcbc;
+    --active-color: #626274;
+    --border-color: #037777777777;
+    display: flex;
+    justify-content: center;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
+        Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --main-button: rgb(93, 124, 220);
+        --confirm-button: rgb(229, 215, 0);
+        --calendar-color: #1a2a2a;
+        --border-color: #fff;
+        --active-color: #50507;
+        color: #dfe0e2;
+        background-color: #02040c;
+        height: 99%;
+        min-height: 99vh;
+    }
+}

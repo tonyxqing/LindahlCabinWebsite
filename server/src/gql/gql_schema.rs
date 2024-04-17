@@ -1,5 +1,10 @@
-use crate::model::{self, Reaction, ReactionEmoji};
-use async_graphql::Object;
+use crate::gql;
+use crate::{
+    db::UserFilter,
+    model::{self, Reaction, ReactionEmoji},
+};
+use async_graphql::{Context, Object};
+use mongodb::bson::oid::ObjectId;
 use serde::Serialize;
 
 pub struct UserData(pub model::User);
@@ -43,20 +48,32 @@ impl VisitData {
         &self.0.creator_id
     }
     async fn arrival(&self) -> Result<String, String> {
-        Ok(self.0.arrival.try_to_rfc3339_string().map_err(|e| e.to_string())?)
+        Ok(self
+            .0
+            .arrival
+            .try_to_rfc3339_string()
+            .map_err(|e| e.to_string())?)
     }
     async fn departure(&self) -> Result<String, String> {
-        Ok(self.0.departure.try_to_rfc3339_string().map_err(|e| e.to_string())?)
+        Ok(self
+            .0
+            .departure
+            .try_to_rfc3339_string()
+            .map_err(|e| e.to_string())?)
     }
     async fn posted_on(&self) -> Result<String, String> {
-        Ok(self.0.posted_on.try_to_rfc3339_string().map_err(|e| e.to_string())?)
+        Ok(self
+            .0
+            .posted_on
+            .try_to_rfc3339_string()
+            .map_err(|e| e.to_string())?)
     }
     async fn num_staying(&self) -> isize {
         self.0.num_staying
     }
 }
 
-struct ReactionData (pub Reaction);
+struct ReactionData(pub Reaction);
 #[Object]
 impl ReactionData {
     async fn id(&self) -> &str {
@@ -78,11 +95,44 @@ impl CommentData {
     async fn creator_id(&self) -> &str {
         &self.0.creator_id
     }
+    async fn name(&self, ctx: &Context<'_>) -> Result<String, String> {
+        let r = gql::Resolver::from_context(ctx).await;
+        let user = r
+            .get_users(UserFilter {
+                id: ObjectId::parse_str(self.0.creator_id.clone()).ok(),
+                ..Default::default()
+            })
+            .await?
+            .first()
+            .expect("issue getting user for message")
+            .clone();
+        Ok(user.name.clone())
+    }
+    async fn profile_pic(&self, ctx: &Context<'_>) -> Result<String, String> {
+        let r = gql::Resolver::from_context(ctx).await;
+        let user = r
+            .get_users(UserFilter {
+                id: ObjectId::parse_str(self.0.creator_id.clone()).ok(),
+                ..Default::default()
+            })
+            .await?
+            .first()
+            .expect("problem getting pic for message")
+            .clone();
+        Ok(user
+            .profile_pic
+            .expect("problem getting profilepic for message")
+            .clone())
+    }
     async fn content(&self) -> &str {
         &self.0.content
     }
     async fn reactions(&self) -> Vec<ReactionData> {
-        self.0.reactions.iter().map(|r| ReactionData (r.clone())).collect()
+        self.0
+            .reactions
+            .iter()
+            .map(|r| ReactionData(r.clone()))
+            .collect()
     }
 }
 pub struct MessageData(pub model::Message);
@@ -93,6 +143,35 @@ impl MessageData {
     }
     async fn creator_id(&self) -> &str {
         &self.0.creator_id
+    }
+    async fn name(&self, ctx: &Context<'_>) -> Result<String, String> {
+        let r = gql::Resolver::from_context(ctx).await;
+        let user = r
+            .get_users(UserFilter {
+                id: ObjectId::parse_str(self.0.creator_id.clone()).ok(),
+                ..Default::default()
+            })
+            .await?
+            .first()
+            .expect("issue getting user for message")
+            .clone();
+        Ok(user.name.clone())
+    }
+    async fn profile_pic(&self, ctx: &Context<'_>) -> Result<String, String> {
+        let r = gql::Resolver::from_context(ctx).await;
+        let user = r
+            .get_users(UserFilter {
+                id: ObjectId::parse_str(self.0.creator_id.clone()).ok(),
+                ..Default::default()
+            })
+            .await?
+            .first()
+            .expect("problem getting pic for message")
+            .clone();
+        Ok(user
+            .profile_pic
+            .expect("problem getting profilepic for message")
+            .clone())
     }
     async fn comments(&self) -> Vec<CommentData> {
         self.0
@@ -105,7 +184,11 @@ impl MessageData {
         &self.0.content
     }
     async fn reactions(&self) -> Vec<ReactionData> {
-        self.0.reactions.iter().map(|r| ReactionData (r.clone())).collect()
+        self.0
+            .reactions
+            .iter()
+            .map(|r| ReactionData(r.clone()))
+            .collect()
     }
     async fn seen_by(&self) -> Vec<String> {
         self.0.seen_by.clone()
