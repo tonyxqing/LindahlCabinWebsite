@@ -6,9 +6,8 @@
 	export let selectedDate: CalendarDate | undefined;
 	export let secondSelectedDate: CalendarDate | undefined;
 	export let focused: CalendarDate;
-	export let ledger: { [key: string]: LedgerEntry[] };
+	export let ledger: { [key: string]: LedgerEntry[] } | undefined = undefined;
 	let inputDate: HTMLInputElement;
-	let secondInputDate: HTMLInputElement;
 
 	$: isActive = (day: number): number => {
 		if (selectedDate) {
@@ -55,9 +54,23 @@
 
 <div class="calendar_wrapper">
 	<div class="month_navigation">
+		{#if ledger}
+			<button
+				on:click={() => {
+					focused = focused.prevMonth();
+				}}>{`<`} prev</button
+			>
+		{/if}
 		<h1>
 			{monthNames[focused.month] + ' ' + focused.year}
 		</h1>
+		{#if ledger}
+			<button
+				on:click={() => {
+					focused = focused.nextMonth();
+				}}>next {`>`}</button
+			>
+		{/if}
 	</div>
 	<header>
 		<!-- mon tue wed thu fri  -->
@@ -86,9 +99,10 @@
 				class:invert-end={active === 1 && day + 1 === numDaysInMonth(focused.year)[focused.month]}
 				class:month={true}
 				class:inside={true}
+				class:center={!ledger}
 			>
-				<div class="day_of_month_tile">
-					{#if day === 0}
+				<div class="day_of_month_tile" class:center={!ledger}>
+					{#if day === 0 && ledger}
 						<p>{monthNames[focused.month].substring(0, 3)}</p>
 					{/if}
 					<p>
@@ -114,14 +128,15 @@
 										</p>
 									</div>
 								{:else if i === 1}
-									{@const str = ledger[day_string].reduce((agg, curr) => {
-										return agg + curr.num_staying;
-									}, 0) - 1}
+									{@const str =
+										ledger[day_string].reduce((agg, curr) => {
+											return agg + curr.num_staying;
+										}, 0) - 1}
 									<div class="ledger_visit">
 										<p class="ledger_visit_creator">
 											+{str}
 										</p>
-										<div style="display: flex; height: 10px; color: red;">
+										<div class="ledger_user_icon">
 											<FaUser />
 										</div>
 									</div>
@@ -142,21 +157,28 @@
 <style>
 	.outside {
 		pointer-events: none;
+		opacity: 0.2;
 	}
 	.calendar_wrapper {
 		display: flex;
 		justify-content: center;
 		flex-direction: column;
 	}
+	.ledger_user_icon {
+		display: flex;
+		height: 10px;
+		color: var(--text-color);
+	}
 	.ledger_visit {
 		display: flex;
 		flex: 1;
 		gap: 8px;
 		align-items: center;
-		border: 1px solid aliceblue;
 		padding: 4px;
 		white-space: nowrap;
 		overflow: hidden;
+		margin: 2px;
+		border: 1px dotted var(--border-color);
 		text-overflow: ellipsis;
 	}
 	.ledger_visit_image {
@@ -169,7 +191,7 @@
 		font-size: 9px;
 		margin: 0;
 		border-radius: 50%;
-		color: red;
+		color: var(--text-color);
 	}
 	.day_of_month_tile {
 		display: flex;
@@ -179,6 +201,7 @@
 	}
 	.day_of_month_tile > p {
 		margin: 2px;
+		color: var(--text-color);
 	}
 
 	.month_navigation {
@@ -201,9 +224,10 @@
 		margin: 0px;
 		gap: 8px;
 		font-size: small;
+		color: var(--text-color);
 	}
 	.invert {
-		background: linear-gradient(90deg, transparent, blue 50%) !important;
+		background: linear-gradient(90deg, transparent, var(--active-color) 50%) !important;
 	}
 	.invert > p {
 		background-color: none !important;
@@ -211,7 +235,7 @@
 	}
 
 	.invert-end {
-		background: linear-gradient(90deg, blue 50%, transparent) !important;
+		background: linear-gradient(90deg, var(--active-color) 50%, transparent) !important;
 	}
 	.invert-end > p {
 		background-color: none !important;
@@ -228,6 +252,7 @@
 	header > h3 {
 		height: 100%;
 		margin: 0px;
+		color: var(--text-color);
 	}
 
 	.month {
@@ -238,9 +263,13 @@
 		padding: 4px;
 		min-height: 20px;
 		min-width: 20px;
-		background-color: white;
-		border: 1px solid black;
+		background-color: var(--calendar-background-color);
+		border: 1px solid var(--border-color);
 		flex-direction: column;
+	}
+	.center {
+		justify-content: center;
+		align-items: center;
 	}
 	.month > p {
 		font-size: 12px;
@@ -254,7 +283,7 @@
 		align-items: center;
 	}
 	.month:hover > p {
-		border: 1px solid rgb(255, 255, 255);
+		border: 1px solid var(--border-color);
 		border-radius: 50%;
 	}
 	.active > p {
@@ -266,19 +295,19 @@
 		align-items: center;
 	}
 	.inside {
-		background-color: white;
+		background-color: var(--calendar-background-color);
 	}
 	.active {
-		background-color: blue;
+		background-color: var(--active-color);
 	}
 
 	.left {
-		background-color: blue !important;
+		background-color: var(--active-color) !important;
 		border-top-left-radius: 50% !important;
 		border-bottom-left-radius: 50% !important;
 	}
 	.right {
-		background-color: blue !important;
+		background-color: var(--active-color) !important;
 		border-top-right-radius: 50% !important;
 		border-bottom-right-radius: 50% !important;
 	}

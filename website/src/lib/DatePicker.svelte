@@ -103,10 +103,6 @@
 </section>
 
 <style>
-	section {
-		width: 100%;
-		height: 100%;
-	}
 	@media (max-width: 720px) {
 		section {
 			flex-wrap: wrap;
@@ -144,6 +140,8 @@
 		justify-content: center;
 		align-items: center;
 		overflow: hidden;
+		height: 100%;
+		width: 100%;
 	}
 	.destination {
 		cursor: not-allowed !important;
@@ -171,6 +169,8 @@
 		display: flex;
 		justify-content: space-around;
 		flex-direction: column;
+		background-color: var(--calendar-background-color);
+		color: var(--text-color);
 		border: 1px solid var(--border-color);
 	}
 	.select_dates_button {

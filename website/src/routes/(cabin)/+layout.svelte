@@ -4,7 +4,7 @@
 	import FaUser from 'svelte-icons/fa/FaUser.svelte';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { auth } from '$lib/client/serverComms';
-	let parsed_token: { profile_pic_url: string, role: "Admin" | "Owner" | "Member" };
+	let parsed_token: { profile_pic_url: string; role: 'Admin' | 'Owner' | 'Member' };
 	let openDropDownMenu = false;
 	let showAdminPanel = false;
 	afterNavigate(() => {
@@ -15,8 +15,8 @@
 				return jwt;
 			});
 			parsed_token = parseJwt(token);
-			const {profile_pic_url, role} = parsed_token;
-			console.log(profile_pic_url, role)
+			const { profile_pic_url, role } = parsed_token;
+			console.log(profile_pic_url, role);
 			if (role === 'Admin') {
 				showAdminPanel = true;
 			} else {
@@ -28,62 +28,65 @@
 	});
 </script>
 
-<nav>
-	{#if showAdminPanel}
-		<a href="/accounts">Accounts</a>
-	{/if}
-	<a href="/">Home</a>
-	<a href="/schedule">Schedule</a>
-	<a href="/blog">Blog</a>
-	<div>
-	<button
-		class="menu"
-		on:mouseover={() => {
-			openDropDownMenu = true;
-		}}
-		on:focus={() => {
-			openDropDownMenu = true;
+<section>
+	<nav>
+		{#if showAdminPanel}
+			<a href="/accounts">Accounts</a>
+		{/if}
+		<a href="/">Home</a>
+		<a href="/schedule">Schedule</a>
+		<a href="/blog">Blog</a>
+		<div>
+			<button
+				class="menu"
+				on:mouseover={() => {
+					openDropDownMenu = true;
+				}}
+				on:focus={() => {
+					openDropDownMenu = true;
+				}}
+			>
+				{#if parsed_token}
+					<img class="profile_picture" src={parsed_token.profile_pic_url} alt="profile" />
+				{:else}
+					<div class="profile_picture">
+						<FaUser />
+					</div>
+				{/if}
+			</button>
+			{#if openDropDownMenu}
+				<ul
+					class="drop_down_menu"
+					on:mouseenter={() => {
+						openDropDownMenu = true;
+					}}
+				>
+					<li><a href="/">Home</a></li>
+					<li>
+						<a
+							on:click={() => {
+								localStorage.removeItem('sessionToken');
+							}}
+							href="/login">Sign Out</a
+						>
+					</li>
+				</ul>
+			{/if}
+		</div>
+	</nav>
+	<!-- svelte-ignore a11y-no-static-element-interactions -->
+	<div
+		class="pane"
+		on:mouseenter={() => {
+			openDropDownMenu = false;
 		}}
 	>
-		{#if parsed_token}
-			<img class="profile_picture" src={parsed_token.profile_pic_url} alt="profile" />
-		{:else}
-			<div class="profile_picture">
-				<FaUser />
-			</div>
-		{/if}
-	</button>
-	{#if openDropDownMenu}
-		<ul
-			class="drop_down_menu"
-			on:mouseenter={() => {
-				openDropDownMenu = true;
-			}}
-		>
-			<li><a href="/">Home</a></li>
-			<li>
-				<a
-					on:click={() => {
-						localStorage.removeItem('sessionToken');
-					}}
-					href="/login">Sign Out</a
-				>
-			</li>
-		</ul>
-	{/if}
+		<slot />
 	</div>
-</nav>
-<!-- svelte-ignore a11y-no-static-element-interactions -->
-<div
-	class="pane"
-	on:mouseenter={() => {
-		openDropDownMenu = false;
-	}}
->
-	<slot />
-</div>
+</section>
 
 <style>
+	
 	nav {
 		display: flex;
 		justify-content: end;
@@ -100,16 +103,23 @@
 		text-decoration: none;
 	}
 	nav > a:hover {
-		background-color: gray
+		background-color: gray;
 	}
 	button {
 		background-color: transparent;
 		border: none;
 	}
+	section {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		width: 100%;
+		height: 100vh;
+	}
+
 	.pane {
 		display: flex;
 		flex: 1;
-		width: 100%;
 	}
 	.profile_picture {
 		aspect-ratio: 1;

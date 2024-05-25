@@ -14,25 +14,20 @@
 		<p>Loading</p>
 	{:then ledger}
 		<div class="calendar_container">
-			<div class="month_navigation_button_container">
-				<button
-					on:click={() => {
-						focused = focused.prevMonth();
-					}}>{`<`} prev</button
-				>
-				<button
-					on:click={() => {
-						focused = focused.nextMonth();
-					}}>next {`>`}</button
-				>
-			</div>
 			<CalendarComponent {ledger} {focused} bind:selectedDate {secondSelectedDate} />
 		</div>
 		<div class="visit_container">
+			<h3>
+				{#if selectedDate}
+					Looking at: {selectedDate?.toString()}
+				{:else}
+					Select a date to view details.
+				{/if}
+			</h3>
 			{#if selectedDate}
-				Looking at: {selectedDate.toString()}
-				{#if ledger[selectedDate.toString()] && ledger[selectedDate.toString()].length}
-					{#each ledger[selectedDate.toString()] as visit}
+				<div class="visits">
+					{#if ledger[selectedDate.toString()] && ledger[selectedDate.toString()].length}
+						{#each ledger[selectedDate.toString()] as visit}
 							<div class="visit_card">
 								{#if visit.profile_pic}
 									<img src={visit.profile_pic} alt="profile" />
@@ -44,11 +39,16 @@
 									<p>People Staying: {visit.num_staying}</p>
 								{/if}
 							</div>
-					{/each}
-				{:else}
-					<p>No visits</p>
-				{/if}
+						{/each}
+					{:else}
+						<p>No visits</p>
+					{/if}
+				</div>
 			{/if}
+		</div>
+	{:catch err}
+		<div>
+			Unable to load calendar: Error ({err})
 		</div>
 	{/await}
 </main>
@@ -56,30 +56,37 @@
 <style>
 	main {
 		display: flex;
-		flex-direction: column;
-		align-items: center;
-		flex: 1;
+		justify-content: space-evenly;
+		width: 100%;
+		overflow: auto;
+		padding: 24px;
 	}
 
 	.visit_card {
+		display: flex;
 		border: 1px solid gray;
 		padding: 10px;
 	}
 	.calendar_container {
 		display: flex;
 		flex-direction: column;
-		flex: 1 1 800px;
-		width: 800px;
+		flex: 0 1 600px;
+		width: 600px;
 	}
-	.month_navigation_button_container {
-		display: flex;
-		justify-content: space-between;
+	.visits {
+		height: 100%;
+		overflow-y: auto;
+		overflow-x: hidden;
 	}
-
 	.visit_container {
 		display: flex;
-		flex: 1;
 		flex-direction: column;
-		width: 800px;
+		height: 80vh;
+		width: 300px;
+		padding: 12px;
+		color: white;
+		overflow: hidden;
+		position: sticky;
+		top: 0;
 	}
 </style>

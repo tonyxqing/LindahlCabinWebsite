@@ -5,7 +5,7 @@ export const auth = writable<{id?: string, profile_pic_url?: string, role?: stri
 
 const gqlQuery = (queryString: string) => {
   const authToken = localStorage.getItem('sessionToken');
-  return fetch("http://localhost:8000", {
+  return fetch(import.meta.env.VITE_SERVER_URL, {
     method: "post",
     headers: authToken ? {
       "Authorization": `Bearer ${authToken}`,
