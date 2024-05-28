@@ -1,12 +1,11 @@
 use crate::auth;
-use rand::prelude::*;
 use crate::db::DB;
-use crate::model::{self, Role, User};
+use crate::model::{self, Message, Role, User, Visit};
 use async_graphql::futures_util::TryStreamExt;
 use mongodb::bson::Document;
 use mongodb::bson::{doc, oid::ObjectId};
+use rand::prelude::*;
 use serde::{Deserialize, Serialize};
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserEntry {
@@ -40,14 +39,17 @@ impl UserUpdate {
         if let Some(name) = &self.name {
             set.insert("name", name);
         }
-            if let Some(email) = &self.email {
+        if let Some(email) = &self.email {
             set.insert("email", email);
         }
-            if let Some(sub) = &self.sub {
+        if let Some(sub) = &self.sub {
             set.insert("sub", sub);
         }
         if let Some(role) = self.role {
-            set.insert("role", mongodb::bson::to_bson(&role).expect("Could not convert to bson"));
+            set.insert(
+                "role",
+                mongodb::bson::to_bson(&role).expect("Could not convert to bson"),
+            );
         }
         if let Some(profile_pic) = self.profile_pic.clone() {
             set.insert("profile_pic", profile_pic);
@@ -122,16 +124,44 @@ pub async fn add_user(db: &DB, user: &UserEntry) -> Result<User, String> {
 }
 
 pub async fn remove_user(db: &DB, filter: UserFilter) -> Result<User, String> {
-    let collection = db.client.collection::<User>("Users");
-    
+    let users_collection = db.client.collection::<User>("Users");
     let filter_doc = filter.to_doc();
 
-    let result = collection
+    let users_result = users_collection
         .find_one_and_delete(filter_doc, None)
         .await
         .expect("Error removing user to database")
         .ok_or(format!("No member with id {:?} was found.", filter.id));
-    result
+
+    let messages_collection = db.client.collection::<Message>("Messages");
+    let creator_id = filter.id.unwrap().to_string();
+    println!("creator id{creator_id}");
+    let messages_result = messages_collection
+        .delete_many(doc! {"creator_id": creator_id.clone()}, None)
+        .await
+        .expect("Error removing users messages");
+
+    println!("{messages_result:?}");
+
+    let messages_result2 = messages_collection
+        .update_many(
+            doc! {},
+            doc! { "$pull": doc! {"comments": doc!{"creator_id": creator_id}}},
+            None,
+        )
+        .await
+        .expect("Error removing users messages");
+
+    println!("{messages_result2:?}");
+    // let _ = messages_collection.update_many(query, update, options)
+    let visits_collection = db.client.collection::<Visit>("Visits");
+    let visits_result = visits_collection
+        .delete_many(doc! {"creator_id": filter.id.unwrap().to_string()}, None)
+        .await
+        .expect("Error removing users visits");
+    println!("{visits_result:?}");
+
+    users_result
 }
 
 pub async fn get_users(db: &DB, filter: UserFilter) -> Result<Vec<User>, String> {
@@ -140,7 +170,7 @@ pub async fn get_users(db: &DB, filter: UserFilter) -> Result<Vec<User>, String>
     let filter_doc = filter.to_doc();
 
     let mut cursor = collection
-        .find( filter_doc, None)
+        .find(filter_doc, None)
         .await
         .expect("Failed getting cursor for collection");
     let mut users = Vec::<User>::new();
@@ -154,16 +184,23 @@ pub async fn update_user(db: &DB, filter: UserFilter, update: UserUpdate) -> Res
     let filter_doc = filter.to_doc();
     let update_doc = update.to_update_doc();
     let collection = db.client.collection::<User>("Users");
-    let result = collection.find_one_and_update(filter_doc, update_doc, None).await.map_err(|e| format!("Unable to update user in db {}", e))?.ok_or(format!("No user found to update. Access code {:?} or User ID {:?} not correct.", filter.access_code, filter.id))?;
-    let update_user = User { 
-       sub: update.sub.unwrap_or(result.sub),
-       email: update.email.unwrap_or(result.email),
-       phone: update.phone.unwrap_or(result.phone),
-       profile_pic: update.profile_pic.or(result.profile_pic),
-       role: update.role.unwrap_or(result.role),
-       access_code: update.access_code.unwrap_or(result.access_code),
-       name: update.name.unwrap_or(result.name),
-       _id: result._id 
+    let result = collection
+        .find_one_and_update(filter_doc, update_doc, None)
+        .await
+        .map_err(|e| format!("Unable to update user in db {}", e))?
+        .ok_or(format!(
+            "No user found to update. Access code {:?} or User ID {:?} not correct.",
+            filter.access_code, filter.id
+        ))?;
+    let update_user = User {
+        sub: update.sub.unwrap_or(result.sub),
+        email: update.email.unwrap_or(result.email),
+        phone: update.phone.unwrap_or(result.phone),
+        profile_pic: update.profile_pic.or(result.profile_pic),
+        role: update.role.unwrap_or(result.role),
+        access_code: update.access_code.unwrap_or(result.access_code),
+        name: update.name.unwrap_or(result.name),
+        _id: result._id,
     };
     Ok(update_user)
 }

@@ -1,26 +1,35 @@
 use crate::db;
-use crate::model::{Comment, Message, Reaction};
+use crate::model::{Comment, Message};
 use async_graphql::futures_util::TryStreamExt;
 use mongodb::bson::oid::ObjectId;
 use mongodb::bson::{doc, DateTime, Document};
 use mongodb::options::{FindOneAndUpdateOptions, ReturnDocument};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 
 pub struct CommentEntry {
     pub _id: ObjectId,
     pub creator_id: String,
     pub content: String,
-    pub reactions: Vec<Reaction>,
+    pub posted_on: DateTime,
+}
+
+impl Default for CommentEntry {
+    fn default() -> Self {
+        Self {
+            _id: ObjectId::new(), 
+            creator_id: "".to_string(),
+            content: "".to_string(),
+            posted_on: DateTime::now(),
+        }
+    }
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MessageEntry {
     pub creator_id: String,
     pub content: String,
     pub comments: Vec<Comment>,
-    pub reactions: Vec<Reaction>,
-    pub seen_by: Vec<String>,
     pub posted_on: DateTime,
 }
 
@@ -30,8 +39,6 @@ impl Default for MessageEntry {
             creator_id: "".to_string(),
             content: "".to_string(),
             comments: Vec::<Comment>::new(),
-            reactions: Vec::<Reaction>::new(),
-            seen_by: Vec::<String>::new(),
             posted_on: DateTime::now(),
         }
     }
@@ -96,8 +103,6 @@ pub async fn add_message(db: &db::DB, message: &MessageEntry) -> Result<Message,
         comments: message.comments.clone(),
         content: message.content.clone(),
         posted_on: message.posted_on.clone(),
-        reactions: message.reactions.clone(),
-        seen_by: message.seen_by.clone(),
     };
 
     Ok(message)

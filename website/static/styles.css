@@ -1,4 +1,5 @@
 body {
+    display: flex;
     margin: 0;
     min-height: 100vh;
     height: 100%;
@@ -9,10 +10,11 @@ body {
     --main-button: rgb(167, 0, 0);
     --confirm-button: rgba(28, 208, 29, 0.52);
     --calendar-color: #cfbcbc;
+    --calendar-background-color: #f7f5e9;
     --active-color: #626274;
-    --border-color: #037777;
+    --border-color: #6487bd;
     --active-color: #505072;
-    --text-color:#214234;
+    --text-color:#6487bd;
     --background-color: #1a2a2a;
     display: flex;
     justify-content: center;

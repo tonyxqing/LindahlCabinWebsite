@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import { monthNames, daysOfWeek, CalendarDate, numDaysInMonth } from '$lib/client/calendarUtils';
 	import FaUser from 'svelte-icons/fa/FaUser.svelte';
+	import FaChevronLeft from 'svelte-icons/fa/FaChevronLeft.svelte';
+	import FaChevronRight from 'svelte-icons/fa/FaChevronRight.svelte';
 	import type { LedgerEntry } from '$lib';
 	export let selectedDate: CalendarDate | undefined;
 	export let secondSelectedDate: CalendarDate | undefined;
@@ -35,7 +37,7 @@
 			!ledger &&
 			selectedDate &&
 			!secondSelectedDate &&
-			date.totalDays() > selectedDate.totalDays()
+			date.totalDays() >= selectedDate.totalDays()
 		) {
 			[secondSelectedDate] = focused.handleClick(day);
 		} else {
@@ -52,34 +54,28 @@
 	});
 </script>
 
+{#if ledger}
+	<button
+		class="calendar_navigation_button"
+		on:click={() => {
+			focused = focused.prevMonth();
+		}}><FaChevronLeft /></button
+	>
+{/if}
 <div class="calendar_wrapper">
 	<div class="month_navigation">
-		{#if ledger}
-			<button
-				on:click={() => {
-					focused = focused.prevMonth();
-				}}>{`<`} prev</button
-			>
-		{/if}
-		<h1>
-			{monthNames[focused.month] + ' ' + focused.year}
+		<h1 class:small_calendar_header={!ledger}>
+			{monthNames[focused.month].toUpperCase()}{ledger ? '' : ' ' + focused.year}
 		</h1>
-		{#if ledger}
-			<button
-				on:click={() => {
-					focused = focused.nextMonth();
-				}}>next {`>`}</button
-			>
-		{/if}
 	</div>
 	<header>
 		<!-- mon tue wed thu fri  -->
 		{#each daysOfWeek as dayName}
-			<h3>{dayName.slice(0, 1)}</h3>
+			<h3>{ledger ? dayName.toUpperCase() : dayName.slice(0, 1)}</h3>
 		{/each}
 		<!-- blank days at start of month -->
 		{#each Array(focused.beginningCalendarOffset()).fill(0) as _, day}
-			<div class:month={true} class:outside={true} />
+			<div class:month={true} class:large_tile={ledger} class:outside={true} />
 		{/each}
 		<!-- numbered days in the month -->
 
@@ -90,13 +86,17 @@
 				role="cell"
 				tabindex="0"
 				on:click={() => handleClick(day)}
-				class:active={active === 1 &&
+				class:active={!ledger &&
+					active === 1 &&
 					!(day === 0) &&
 					!(day + 1 === numDaysInMonth(focused.year)[focused.month])}
 				class:right={!ledger && (active === 3 || (active === 2 && !secondSelectedDate))}
 				class:left={!ledger && active === 2}
-				class:invert={active === 1 && day === 0}
-				class:invert-end={active === 1 && day + 1 === numDaysInMonth(focused.year)[focused.month]}
+				class:invert={!ledger && active === 1 && day === 0}
+				class:large_tile={ledger}
+				class:invert-end={!ledger &&
+					active === 1 &&
+					day + 1 === numDaysInMonth(focused.year)[focused.month]}
 				class:month={true}
 				class:inside={true}
 				class:center={!ledger}
@@ -149,20 +149,36 @@
 		{/each}
 		<!-- blank days at the end of the month -->
 		{#each Array(focused.endCalendarOffset()).fill(0) as _, day}
-			<div class:month={true} class:outside={true} />
+			<div class:month={true} class:large_tile={ledger} class:outside={true} />
 		{/each}
 	</header>
 </div>
+{#if ledger}
+	<button
+		class="calendar_navigation_button"
+		on:click={() => {
+			focused = focused.nextMonth();
+		}}><FaChevronRight /></button
+	>
+{/if}
 
 <style>
+	.calendar_navigation_button {
+		background-color: transparent;
+		height: 48px;
+		border: none;
+		cursor: pointer;
+		color: #c9c9c9;
+	}
 	.outside {
 		pointer-events: none;
-		opacity: 0.2;
 	}
 	.calendar_wrapper {
 		display: flex;
 		justify-content: center;
 		flex-direction: column;
+		border-right: 1px solid var(--border-color);
+		box-shadow: 4px 4px 5px lightslategray;
 	}
 	.ledger_user_icon {
 		display: flex;
@@ -211,38 +227,33 @@
 		flex: 1;
 		gap: 8px;
 		width: 100%;
+		background-color: #6487bd;
 		position: relative;
 	}
 
+	.small_calendar_header {
+		font-size: 20px !important;
+	}
 	.month_navigation > h1 {
-		height: 100%;
 		display: flex;
 		flex: 1;
 		align-items: center;
 		justify-content: center;
+		font-family: 'Old Standard TT', serif;
 		padding: 0px;
 		margin: 0px;
 		gap: 8px;
-		font-size: small;
-		color: var(--text-color);
+		font-size: 48px;
+		color: white;
 	}
 	.invert {
 		background: linear-gradient(90deg, transparent, var(--active-color) 50%) !important;
-	}
-	.invert > p {
-		background-color: none !important;
-		border: none !important;
 	}
 
 	.invert-end {
 		background: linear-gradient(90deg, var(--active-color) 50%, transparent) !important;
 	}
-	.invert-end > p {
-		background-color: none !important;
-		border: none !important;
-	}
 	header {
-		padding-top: 16px;
 		display: grid;
 		grid-template-columns: repeat(7, 1fr);
 		text-align: center;
@@ -250,9 +261,19 @@
 	}
 
 	header > h3 {
-		height: 100%;
 		margin: 0px;
+		font-size: medium;
+		font-weight: 400;
+		font-family: 'Signika', sans-serif;
 		color: var(--text-color);
+		border-bottom: 1px solid var(--border-color);
+		border-left: 1px solid var(--border-color);
+		border-top: none;
+		height: 40px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background-color: white;
 	}
 
 	.month {
@@ -264,35 +285,23 @@
 		min-height: 20px;
 		min-width: 20px;
 		background-color: var(--calendar-background-color);
-		border: 1px solid var(--border-color);
+		border-bottom: 1px solid var(--border-color);
+		border-left: 1px solid var(--border-color);
+
 		flex-direction: column;
+	}
+
+	.large_tile {
+		min-height: 100px;
+		min-width: 100px;
 	}
 	.center {
 		justify-content: center;
 		align-items: center;
 	}
-	.month > p {
-		font-size: 12px;
-		font-weight: 600;
-		margin: 0;
-		display: flex;
-		flex: 1;
-		aspect-ratio: 1;
-		border-radius: 50%;
-		justify-content: center;
-		align-items: center;
-	}
-	.month:hover > p {
-		border: 1px solid var(--border-color);
-		border-radius: 50%;
-	}
-	.active > p {
-		display: flex;
-		flex: 1;
-		aspect-ratio: 1;
-		border-radius: 50%;
-		justify-content: center;
-		align-items: center;
+
+	.month:hover {
+		opacity: 0.7;
 	}
 	.inside {
 		background-color: var(--calendar-background-color);

@@ -1,8 +1,14 @@
 import { parseJwt } from "$lib/Utils";
 import { writable } from "svelte/store";
 
-export const auth = writable<{id?: string, profile_pic_url?: string, role?: string}>({id: undefined, profile_pic_url: undefined, role: undefined})
 
+const storedToken = localStorage.getItem('sessionToken');
+const parsedToken = storedToken ? parseJwt(storedToken) : {};
+export const auth = writable<{sub?: string, profile_pic_url?: string, role?: string, name?: string}>({sub: parsedToken.sub, profile_pic_url: parsedToken.profile_pic_url, role: parsedToken.role, name: parsedToken.name})
+
+auth.subscribe(change => {
+  console.log(change)
+})
 const gqlQuery = (queryString: string) => {
   const authToken = localStorage.getItem('sessionToken');
   return fetch(import.meta.env.VITE_SERVER_URL, {
@@ -101,27 +107,27 @@ export interface Message {
   profilePic: string;
   content: string;
   comments: Comment[];
-  reactions: string[];
-  seenBy: string[];
   postedOn: string;
 }
 
 export interface Comment {
   id: string;
+  name: string;
+  profilePic: string;
   creatorId: string;
   content: string;
-  reactions: string[];
+  postedOn: string;
 }
 
 export const addMessage = async (content: string) => {
   const query =
-    `mutation {addMessage(content: "${content}") {id creatorId content seenBy postedOn}}`;
+    `mutation {addMessage(content: "${content}") {id creatorId content postedOn}}`;
   await gqlQuery(query);
 };
 
 export const getMessages = async (): Promise<Message[]> => {
   const query =
-    `query { getMessages {id creatorId comments{id creatorId content name profilePic reactions{id creatorId emoji}} reactions{id creatorId emoji} content seenBy postedOn name profilePic}}`;
+    `query { getMessages {id creatorId comments{id creatorId content name profilePic postedOn} content postedOn name profilePic}}`;
   const request = await gqlQuery(query);
   const result = await request.json();
   return result.data.getMessages;
@@ -129,7 +135,7 @@ export const getMessages = async (): Promise<Message[]> => {
 
 export const removeMessage = async (messageId: string) => {
   const query =
-    `mutation {removeMessage(messageId: "${messageId}") {id creatorId content seenBy postedOn}}`;
+    `mutation {removeMessage(messageId: "${messageId}") {id creatorId content postedOn}}`;
   await gqlQuery(query);
 };
 

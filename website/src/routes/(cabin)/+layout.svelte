@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { parseJwt } from '$lib/Utils';
 	import FaUser from 'svelte-icons/fa/FaUser.svelte';
 	import { afterNavigate, goto } from '$app/navigation';
@@ -31,11 +30,11 @@
 <section>
 	<nav>
 		{#if showAdminPanel}
-			<a href="/accounts">Accounts</a>
+			<a href="/accounts">ACCOUNTS</a>
 		{/if}
-		<a href="/">Home</a>
-		<a href="/schedule">Schedule</a>
-		<a href="/blog">Blog</a>
+		<a href="/">HOME</a>
+		<a href="/schedule">SCHEDULE</a>
+		<a href="/blog">BLOG</a>
 		<div>
 			<button
 				class="menu"
@@ -86,16 +85,21 @@
 </section>
 
 <style>
-	
 	nav {
 		display: flex;
+		position: absolute;
 		justify-content: end;
-		width: 100%;
+		width: 80%;
+		align-self: center;
+		padding: 16px 0;
 		z-index: 10;
-		background-color: red;
 	}
 	nav > a {
-		background-color: white;
+		background-color: rgba(0, 0, 0, 0.1);
+		opacity: 1;
+		font-weight: 600;
+		font-size: 20px;
+		color: #b9c5d6;
 		display: flex;
 		flex: 1;
 		justify-content: center;
@@ -103,7 +107,9 @@
 		text-decoration: none;
 	}
 	nav > a:hover {
-		background-color: gray;
+		background-color: #6388be;
+		color: white;
+		opacity: 0.8;
 	}
 	button {
 		background-color: transparent;
@@ -115,6 +121,7 @@
 		flex-direction: column;
 		width: 100%;
 		height: 100vh;
+		overflow: hidden;
 	}
 
 	.pane {
@@ -123,7 +130,6 @@
 	}
 	.profile_picture {
 		aspect-ratio: 1;
-		background-color: transparent;
 		border-color: transparent;
 		border-radius: 50%;
 		color: white;
@@ -138,12 +144,25 @@
 		right: 0;
 		z-index: 999;
 	}
+
+	.menu {
+		background-color: rgba(0, 0, 0, 0.1);
+	}
+
+	.menu:hover {
+		background-color: rgba(99,136,190, 0.8);
+		color: white;
+		cursor: pointer;
+	}
+
 	.drop_down_menu li:hover {
-		background-color: red;
+		background-color: rgba(99,136,190, 0.8);
+
 	}
 	.drop_down_menu li a {
-		background-color: white;
-		border: 1px solid black;
+		background-color: rgba(0, 0, 0, 0.1);
+
+		color: white;
 		align-items: center;
 		text-decoration: none;
 		display: flex;

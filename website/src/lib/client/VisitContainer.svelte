@@ -41,7 +41,6 @@
 
 <style>
 	.remove_visit_button {
-		border-color: red;
 		background-color: transparent;
 		float: right;
 		color: white;

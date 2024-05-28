@@ -1,7 +1,7 @@
 use crate::gql;
 use crate::{
     db::UserFilter,
-    model::{self, Reaction, ReactionEmoji},
+    model::{self},
 };
 use async_graphql::{Context, Object};
 use mongodb::bson::oid::ObjectId;
@@ -73,19 +73,6 @@ impl VisitData {
     }
 }
 
-struct ReactionData(pub Reaction);
-#[Object]
-impl ReactionData {
-    async fn id(&self) -> &str {
-        &self.0._id
-    }
-    async fn creator_id(&self) -> &str {
-        &self.0.creator_id
-    }
-    async fn emoji(&self) -> ReactionEmoji {
-        self.0.emoji
-    }
-}
 pub struct CommentData(pub model::Comment);
 #[Object]
 impl CommentData {
@@ -127,12 +114,8 @@ impl CommentData {
     async fn content(&self) -> &str {
         &self.0.content
     }
-    async fn reactions(&self) -> Vec<ReactionData> {
-        self.0
-            .reactions
-            .iter()
-            .map(|r| ReactionData(r.clone()))
-            .collect()
+    async fn posted_on(&self) -> String {
+        self.0.posted_on.to_string()
     }
 }
 pub struct MessageData(pub model::Message);
@@ -182,16 +165,6 @@ impl MessageData {
     }
     async fn content(&self) -> &str {
         &self.0.content
-    }
-    async fn reactions(&self) -> Vec<ReactionData> {
-        self.0
-            .reactions
-            .iter()
-            .map(|r| ReactionData(r.clone()))
-            .collect()
-    }
-    async fn seen_by(&self) -> Vec<String> {
-        self.0.seen_by.clone()
     }
     async fn posted_on(&self) -> String {
         self.0.posted_on.to_string()

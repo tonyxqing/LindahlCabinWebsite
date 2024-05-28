@@ -69,7 +69,7 @@
 		on:click={async () => {
 			if (selectedDate && secondSelectedDate) {
 				console.log(selectedDate?.getDate().toISOString(), secondSelectedDate?.getDate().toISOString())
-				await addVisit(selectedDate?.getDate().toISOString(), secondSelectedDate?.getDate().toISOString(), guestValue, $auth.id);
+				await addVisit(selectedDate?.getDate().toISOString(), secondSelectedDate?.getDate().toISOString(), guestValue);
 				count++;
 			}
 			selectedDate = undefined;
@@ -91,7 +91,7 @@
 		<DatePickerV2 mobile={w < 400} bind:selectedDate bind:secondSelectedDate />
 		<div
 			role="none"
-			class="select_dates_button"
+			class="select dates_button"
 			on:click={() => {
 				selectingDate = false;
 				guestInput.focus();
@@ -99,6 +99,15 @@
 		>
 			Done
 		</div>
+		<div
+		role="none"
+		class="cancel dates_button"
+		on:click={() => {
+			selectingDate = false;
+		}}
+	>
+		Cancel
+	</div>
 	</div>
 </section>
 
@@ -173,7 +182,7 @@
 		color: var(--text-color);
 		border: 1px solid var(--border-color);
 	}
-	.select_dates_button {
+	.dates_button {
 		display: flex;
 		justify-content: center;
 		align-items: center;
@@ -184,7 +193,7 @@
 		border-radius: 6px;
 		cursor: pointer;
 	}
-	.select_dates_button:hover {
+	.dates_button:hover {
 		background: blue;
 	}
 </style>

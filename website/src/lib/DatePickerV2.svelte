@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { CalendarDate } from '$lib/client/calendarUtils';
 	import CalendarComponent from './CalendarComponent.svelte';
+	import FaChevronLeft from 'svelte-icons/fa/FaChevronLeft.svelte';
+	import FaChevronRight from 'svelte-icons/fa/FaChevronRight.svelte';
 	let date = new Date();
 
 	let focused: CalendarDate = new CalendarDate(date);
@@ -12,21 +14,21 @@
 </script>
 
 <section>
-	<div class="navigation_container">
-		<button
-			on:click={() => {
-				focused = focused.prevMonth();
-				focused2 = focused2.prevMonth();
-			}}>{`<`}</button
-		>
-		<button
-			on:click={() => {
-				focused = focused.nextMonth();
-				focused2 = focused2.nextMonth();
-			}}>{`>`}</button
-		>
-	</div>
 	{#if mobile}
+		<div class="navigation_container">
+			<button
+				on:click={() => {
+					focused = focused.prevMonth();
+					focused2 = focused2.prevMonth();
+				}}>{`<`}</button
+			>
+			<button
+				on:click={() => {
+					focused = focused.nextMonth();
+					focused2 = focused2.nextMonth();
+				}}>{`>`}</button
+			>
+		</div>
 		<div class="mobile_calendar_container">
 			<CalendarComponent bind:focused bind:selectedDate bind:secondSelectedDate />
 			{#each Array(11).fill(0) as _, month}
@@ -37,9 +39,26 @@
 			{/each}
 		</div>
 	{:else}
-		<div class="double_calendar_container">
-			<CalendarComponent {focused} bind:selectedDate bind:secondSelectedDate />
-			<CalendarComponent focused={focused2} bind:selectedDate bind:secondSelectedDate />
+		<div class="navigation_container">
+			<button
+			class="calendar_navigation_button"
+			on:click={() => {
+					focused = focused.prevMonth();
+					focused2 = focused2.prevMonth();
+			}}><FaChevronLeft /></button
+		>
+			<div class="double_calendar_container">
+				<CalendarComponent {focused} bind:selectedDate bind:secondSelectedDate />
+				<CalendarComponent focused={focused2} bind:selectedDate bind:secondSelectedDate />
+			</div>
+			<button
+			class="calendar_navigation_button"
+			on:click={() => {
+					focused = focused.nextMonth();
+					focused2 = focused2.nextMonth();
+			}}><FaChevronRight/></button
+		>
+
 		</div>
 	{/if}
 </section>
@@ -54,8 +73,16 @@
 		overflow: auto;
 	}
 	section {
-		height: 500px;
 		overflow: auto;
+	}
+
+	.calendar_navigation_button {
+		background-color: transparent;
+		align-self: center;
+		height: 48px;
+		border: none;
+		cursor: pointer;
+		color: #c9c9c9;
 	}
 
 	.navigation_container {

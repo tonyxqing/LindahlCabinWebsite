@@ -36,6 +36,7 @@ pub struct GoogleClaims {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SessionClaims {
     sub: String,
+    name: String,
     exp: i64,
     role: String,
     profile_pic_url: String,
@@ -45,9 +46,11 @@ pub async fn create_token(
     profile_pic_url: String,
     sub: String,
     role: String,
+    name: String,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let claims = SessionClaims {
         sub,
+        name,
         exp: chrono::Utc::now()
             .checked_add_signed(chrono::Duration::weeks(2))
             .expect("Failed to calculate token expiration")

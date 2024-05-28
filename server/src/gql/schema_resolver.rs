@@ -12,7 +12,7 @@ use crate::auth::AuthResult;
 use crate::db::{
     MessageEntry, MessageFilter, UserEntry, UserFilter, UserUpdate, VisitEntry, VisitUpdate,
 };
-use crate::model::{self, Reaction, Role, Visit};
+use crate::model::{self, Role, Visit};
 use crate::model::{Message, User};
 use crate::{auth, gql};
 
@@ -341,7 +341,7 @@ impl Mutation {
                 },
             )
             .await?;
-        let token = auth::create_token(picture.unwrap(), u._id.to_string(), u.role.to_string())
+        let token = auth::create_token(picture.unwrap(), u._id.to_string(), u.role.to_string(), u.name.to_string())
             .await
             .map_err(|_| "Error creating token")?;
 
@@ -418,6 +418,7 @@ impl Mutation {
             picture.unwrap(),
             account.first().unwrap()._id.to_string(),
             account.first().unwrap().role.to_string(),
+            account.first().unwrap().name.to_string(),
         )
         .await;
         Ok(token.unwrap())
@@ -470,6 +471,7 @@ impl Mutation {
     ) -> Result<gql::UserData, String> {
         AuthResult::from_context(ctx, Role::Admin).or(AuthResult::from_context(ctx, Role::Owner))?;
         let r = gql::Resolver::from_context(ctx).await;
+        println!("{id}");
         let result = r
             .remove_user(UserFilter {
                 id: Some(ObjectId::parse_str(id).expect("Failed parsing Object Id")),

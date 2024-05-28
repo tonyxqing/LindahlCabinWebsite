@@ -4,7 +4,6 @@
 	import { goto } from '$app/navigation';
 	import { account } from './client/authStore';
 	import { parseJwt } from './Utils';
-	export let access_code: string = '';
 	let error_message = '';
 
 	onMount(() => {
@@ -16,33 +15,23 @@
 				credential: string;
 				select_by: string;
 			}) => {
-				if (!access_code) {
-					let session = await getSession(params.credential);
-					switch (session) {
-						case 'MAKE_ACCOUNT':
-							// make account page
-							console.log('make account');
-							goto('/signup');
-							break;
-						default:
-							console.log(session);
-							localStorage.setItem('sessionToken', session);
-							let token = parseJwt(session);
-							console.log('token is', token);
-							$account = token;
-							goto('/')
-					}
-				} else {
-					let update = await registerMember(access_code, params.credential);
-					console.log(update)
-					if (update.errors) {
-						error_message = update.errors[0].message
-					}
-
-					if (update.registerMember && update.registerMember.id) {
-						goto('/')
-					}
-				}	
+				localStorage.setItem(
+					'googleToken',
+					JSON.stringify(params)
+				);
+				let session = await getSession(params.credential);
+				switch (session) {
+					case 'MAKE_ACCOUNT':
+						// make account page
+						console.log('make account');
+						goto('/signup');
+						break;
+					default:
+						localStorage.setItem('sessionToken', session);
+						let token = parseJwt(session);
+						$account = token;
+						goto('/');
+				}
 			}
 		});
 		window.google.accounts.id.renderButton(
