@@ -71,14 +71,13 @@
 	<header>
 		<!-- mon tue wed thu fri  -->
 		{#each daysOfWeek as dayName}
-			<h3>{ledger ? dayName.toUpperCase() : dayName.slice(0, 1)}</h3>
+			<h3>{ledger ? dayName.toUpperCase().slice(0,3) : dayName.slice(0, 1)}</h3>
 		{/each}
 		<!-- blank days at start of month -->
 		{#each Array(focused.beginningCalendarOffset()).fill(0) as _, day}
 			<div class:month={true} class:large_tile={ledger} class:outside={true} />
 		{/each}
 		<!-- numbered days in the month -->
-
 		{#each Array(focused.numDaysInMonth()).fill(0) as _, day}
 			{@const active = isActive(day)}
 			<!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -265,7 +264,7 @@
 		font-size: medium;
 		font-weight: 400;
 		font-family: 'Signika', sans-serif;
-		color: var(--text-color);
+		color: var(--calendar-background-color);
 		border-bottom: 1px solid var(--border-color);
 		border-left: 1px solid var(--border-color);
 		border-top: none;
@@ -292,8 +291,10 @@
 	}
 
 	.large_tile {
-		min-height: 100px;
-		min-width: 100px;
+		min-height: 72px;
+		min-width: 72px;
+		max-width: 72px;
+		max-height: 72px;
 	}
 	.center {
 		justify-content: center;

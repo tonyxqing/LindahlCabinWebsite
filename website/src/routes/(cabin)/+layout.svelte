@@ -27,67 +27,62 @@
 	});
 </script>
 
-<section>
-	<nav>
-		{#if showAdminPanel}
-			<a href="/accounts">ACCOUNTS</a>
-		{/if}
-		<a href="/">HOME</a>
-		<a href="/schedule">SCHEDULE</a>
-		<a href="/blog">BLOG</a>
-		<div>
-			<button
-				class="menu"
-				on:mouseover={() => {
-					openDropDownMenu = true;
-				}}
-				on:focus={() => {
-					openDropDownMenu = true;
-				}}
-			>
-				{#if parsed_token}
-					<img class="profile_picture" src={parsed_token.profile_pic_url} alt="profile" />
-				{:else}
-					<div class="profile_picture">
-						<FaUser />
-					</div>
-				{/if}
-			</button>
-			{#if openDropDownMenu}
-				<ul
-					class="drop_down_menu"
-					on:mouseenter={() => {
-						openDropDownMenu = true;
-					}}
-				>
-					<li><a href="/">Home</a></li>
-					<li>
-						<a
-							on:click={() => {
-								localStorage.removeItem('sessionToken');
-							}}
-							href="/login">Sign Out</a
-						>
-					</li>
-				</ul>
+<nav>
+	{#if showAdminPanel}
+		<a href="/accounts">ACCOUNTS</a>
+	{/if}
+	<a href="/">HOME</a>
+	<a href="/schedule">SCHEDULE</a>
+	<a href="/blog">BLOG</a>
+	<div>
+		<button
+			class="menu"
+			on:mouseover={() => {
+				openDropDownMenu = true;
+			}}
+			on:focus={() => {
+				openDropDownMenu = true;
+			}}>
+			{#if parsed_token}
+				<img class="profile_picture" src={parsed_token.profile_pic_url} alt="profile" />
+			{:else}
+				<div class="profile_picture">
+					<FaUser />
+				</div>
 			{/if}
-		</div>
-	</nav>
-	<!-- svelte-ignore a11y-no-static-element-interactions -->
-	<div
-		class="pane"
-		on:mouseenter={() => {
-			openDropDownMenu = false;
-		}}
-	>
-		<slot />
+		</button>
+		{#if openDropDownMenu}
+			<ul
+				class="drop_down_menu"
+				on:mouseenter={() => {
+					openDropDownMenu = true;
+				}}>
+				<li><a href="/">Home</a></li>
+				<li>
+					<a
+						on:click={() => {
+							localStorage.removeItem('sessionToken');
+						}}
+						href="/login">
+						Sign Out
+					</a>
+				</li>
+			</ul>
+		{/if}
 	</div>
-</section>
+</nav>
+<!-- svelte-ignore a11y-no-static-element-interactions -->
+<div
+	class="pane"
+	on:mouseenter={() => {
+		openDropDownMenu = false;
+	}}>
+	<slot />
+</div>
 
 <style>
 	nav {
 		display: flex;
-		position: absolute;
 		justify-content: end;
 		width: 80%;
 		align-self: center;
@@ -116,11 +111,6 @@
 		border: none;
 	}
 	section {
-		display: flex;
-		flex: 1;
-		flex-direction: column;
-		width: 100%;
-		height: 100vh;
 		overflow: hidden;
 	}
 
@@ -150,14 +140,13 @@
 	}
 
 	.menu:hover {
-		background-color: rgba(99,136,190, 0.8);
+		background-color: rgba(99, 136, 190, 0.8);
 		color: white;
 		cursor: pointer;
 	}
 
 	.drop_down_menu li:hover {
-		background-color: rgba(99,136,190, 0.8);
-
+		background-color: rgba(99, 136, 190, 0.8);
 	}
 	.drop_down_menu li a {
 		background-color: rgba(0, 0, 0, 0.1);

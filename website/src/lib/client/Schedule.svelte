@@ -107,8 +107,7 @@
 				on:click={(e) => {
 					e.stopPropagation();
 					selectingDate = true;
-				}}
-			>
+				}}>
 				<div class="add_visit_icon">
 					<FaPlusCircle />
 				</div>
@@ -120,8 +119,7 @@
 					e.stopPropagation();
 				}}
 				class:select_calendar_container={true}
-				class:hidden={!selectingDate}
-			>
+				class:hidden={!selectingDate}>
 				<DatePickerV2 mobile={w < 400} bind:selectedDate bind:secondSelectedDate />
 
 				<div>
@@ -148,8 +146,7 @@
 							selectingDate = false;
 							visits = getVisits();
 							fetched_ledger = getLedger(focused.getDate().toISOString());
-						}}
-					>
+						}}>
 						Done
 					</button>
 					<button
@@ -157,8 +154,7 @@
 						on:click={() => {
 							selectingDate = false;
 							guestInput.focus();
-						}}
-					>
+						}}>
 						Cancel
 					</button>
 				</div>

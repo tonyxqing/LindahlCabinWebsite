@@ -3,7 +3,7 @@
 	import GoogleSigninButton from '$lib/GoogleSigninButton.svelte';
 	import { account } from '$lib/client/authStore';
 	import { onMount } from 'svelte';
-	$: console.log('THE ACCOUNT FROM THE STORE IS', $account);
+	
 	onMount(() => {
 		let token = localStorage.getItem('sessionToken');
 		if (token) {
@@ -13,16 +13,16 @@
 </script>
 
 <div>
-	<h3>Lindahl Cabin</h3>
+	<h1>Login</h1>
 	<GoogleSigninButton />
+	<p>No account? <a href="/account-request">Request an account here.</a></p>
 </div>
 
 <style>
 	div {
-		display: flex;
-		flex: 1;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
+		padding: 10px;
+		height: 200px;
+		width: 340px;
+		background-color:beige;
 	}
 </style>

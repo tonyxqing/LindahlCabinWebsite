@@ -22,10 +22,10 @@
 </script>
 
 <main>
-    <div class="access_code_container">
-        <label for="access_code">Code: </label>
-        <input type="text" id="access_code" bind:value={access_code} />
-    </div>
+	<div class="access_code_container">
+		<label for="access_code">Code:</label>
+		<input type="text" id="access_code" bind:value={access_code} />
+	</div>
 	<button
 		on:click={async () => {
 			let update = await registerMember(access_code, params.credential);
@@ -35,30 +35,26 @@
 			}
 			localStorage.removeItem('googleToken');
 			window.location.href = '/';
-		}}>Sign Up</button
-	>
+		}}>
+		Sign Up
+	</button>
 </main>
 
-
 <style>
+	.access_code_container {
+		display: flex;
+		gap: 8px;
+	}
 
-    .access_code_container {
-        display: flex;
-        gap: 8px;
-    }
-
-    input {
-        height: 28px;
-        font-size: 18px;
-    }
-    main {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        flex: 1;
-    }
-
-
-
+	input {
+		height: 28px;
+		font-size: 18px;
+	}
+	main {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		flex: 1;
+	}
 </style>

@@ -8,9 +8,12 @@
 		},
 		{
 			"path": "mongo"
+		},
+		{
+			"path": "."
 		}
 	],
 	"settings": {
-		"deno.enable": true
+
 	}
 }
