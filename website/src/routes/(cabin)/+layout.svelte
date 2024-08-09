@@ -43,13 +43,13 @@
 			on:focus={() => {
 				openDropDownMenu = true;
 			}}>
-			{#if parsed_token}
-				<img class="profile_picture" src={parsed_token.profile_pic_url} alt="profile" />
-			{:else}
-				<div class="profile_picture">
+			<div class="profile_picture">
+				{#if parsed_token && parsed_token.profile_pic_url}
+					<img src={parsed_token.profile_pic_url} alt="profile" />
+				{:else}
 					<FaUser />
-				</div>
-			{/if}
+				{/if}
+			</div>
 		</button>
 		{#if openDropDownMenu}
 			<ul
@@ -109,9 +109,6 @@
 	button {
 		background-color: transparent;
 		border: none;
-	}
-	section {
-		overflow: hidden;
 	}
 
 	.pane {

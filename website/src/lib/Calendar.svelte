@@ -250,7 +250,6 @@
 							let input = e.target?.value;
 							let splitDate = input.split('-');
 							let date = new Date(splitDate[0], splitDate[1] - 1, splitDate[2]);
-
 							if (!isNaN(date) && splitDate[0] > 1970) {
 								if (selectedDate && selectedDate > date) {
 									selectedDate = null;
@@ -265,7 +264,6 @@
 									focusedMonth = date.getMonth() - 1;
 									focusedYear = date.getFullYear();
 								}
-
 								secondSelectedDate = date;
 							}
 						}}

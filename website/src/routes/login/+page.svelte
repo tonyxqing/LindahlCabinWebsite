@@ -1,8 +1,8 @@
 <script>
 	import { goto } from '$app/navigation';
 	import GoogleSigninButton from '$lib/GoogleSigninButton.svelte';
-	import { account } from '$lib/client/authStore';
 	import { onMount } from 'svelte';
+
 	
 	onMount(() => {
 		let token = localStorage.getItem('sessionToken');
@@ -20,9 +20,10 @@
 
 <style>
 	div {
+		margin: auto 0;
 		padding: 10px;
 		height: 200px;
 		width: 340px;
-		background-color:beige;
+		background-color: var(--text-color);
 	}
 </style>

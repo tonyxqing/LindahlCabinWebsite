@@ -47,6 +47,35 @@ impl VisitData {
     async fn creator_id(&self) -> &str {
         &self.0.creator_id
     }
+    async fn name(&self, ctx: &Context<'_>) -> Result<String, String> {
+        let r = gql::Resolver::from_context(ctx).await;
+        let user = r
+            .get_users(UserFilter {
+                id: ObjectId::parse_str(self.0.creator_id.clone()).ok(),
+                ..Default::default()
+            })
+            .await?
+            .first()
+            .expect("issue getting user for message")
+            .clone();
+        Ok(user.name.clone()) 
+    }
+    async fn profile_pic(&self, ctx: &Context<'_>) -> Result<String, String> {
+        let r = gql::Resolver::from_context(ctx).await;
+        let user = r
+            .get_users(UserFilter {
+                id: ObjectId::parse_str(self.0.creator_id.clone()).ok(),
+                ..Default::default()
+            })
+            .await?
+            .first()
+            .expect("problem getting pic for message")
+            .clone();
+        Ok(user
+            .profile_pic
+            .expect("problem getting profilepic for message")
+            .clone())
+    }
     async fn arrival(&self) -> Result<String, String> {
         Ok(self
             .0

@@ -22,6 +22,8 @@ const gqlQuery = (queryString: string) => {
 
 export interface Visit {
   id: string;
+  name: string;
+  profilePic: string;
   creatorId: string;
   arrival: string;
   departure: string;
@@ -89,7 +91,7 @@ export const getVisits = async (
   end?: string,
 ): Promise<Visit[]> => {
   const query =
-    `query{getVisits{ id creatorId arrival departure numStaying postedOn}}`;
+    `query{getVisits{ id creatorId name profilePic arrival departure numStaying postedOn}}`;
   const request = await gqlQuery(query);
   const response = await request.json();
   return response.data.getVisits;

@@ -9,7 +9,6 @@
 	let secondSelectedDate: CalendarDate | undefined;
 	$: fetched_ledger = getLedger(focused.getDate().toISOString());
 	let selectingDate = false;
-
 	let guestInput: HTMLInputElement;
 	let guestValue = 1;
 	let visits = getVisits();
@@ -21,12 +20,29 @@
 	{#await fetched_ledger}
 		<p>Loading</p>
 	{:then ledger}
-		<div>
+		<div class="calendar_header_container">
 			<div class="visit_container">
 				<h3>UPCOMING TRIPS</h3>
 				{#await visits then visits}
 					{#if visits.length}
-						<p>Trip</p>
+						{#each visits as visit}
+							<div class="visit_card">
+								<span>
+									<img
+										src={visit.profilePic}
+										class="visit_profile_pic"
+										height="30px"
+										width="30px"
+										alt="trip posted by" />
+									<p>{visit.name}</p>
+								</span>
+								<p>{visit.numStaying}</p>
+								<span>
+									<p>{visit.arrival}</p>
+									<p>{visit.departure}</p>
+								</span>
+							</div>
+						{/each}
 					{:else}
 						<p>No upcoming trips.</p>
 					{/if}
@@ -121,7 +137,6 @@
 				class:select_calendar_container={true}
 				class:hidden={!selectingDate}>
 				<DatePickerV2 mobile={w < 400} bind:selectedDate bind:secondSelectedDate />
-
 				<div>
 					People Coming <input type="number" max="20" />
 				</div>
@@ -171,11 +186,20 @@
 </main>
 
 <style>
+	.calendar_header_container {
+		flex: 1;
+		padding: 12px;
+		justify-content: center;
+		align-items: center;
+		display: flex;
+		flex-direction: column;
+	}
 	main {
 		display: flex;
 		justify-content: space-evenly;
 		width: 100%;
 		padding: 24px;
+		flex-wrap: wrap;
 	}
 
 	.calendar_button_container {
@@ -237,13 +261,17 @@
 		display: flex;
 		align-items: center;
 		background-color: transparent;
+		justify-content: space-around;
 		border: 1px solid transparent;
 		height: 100px;
 		border-radius: 8px;
 		color: var(--text-color);
 		gap: 4px;
-		width: 250px;
+		width: 90%;
 		padding: 12px;
+	}
+	.visit_profile_pic {
+		border-radius: 50%;
 	}
 
 	.add_visit_button:hover {
@@ -254,20 +282,19 @@
 		color: var(--text-color);
 		font-weight: 600;
 		font-size: 20px;
-		display: flex;
-		flex: 1;
 	}
 	.visit_container {
 		display: flex;
 		flex: 1;
+		width: 90%;
 		margin: 8px;
 		border-radius: 12px;
 		flex-direction: column;
 		padding: 12px;
+		align-items: center;
 		background-color: #dfe5f1;
 		color: white;
 		overflow: hidden;
-		position: sticky;
 		top: 0;
 	}
 </style>
