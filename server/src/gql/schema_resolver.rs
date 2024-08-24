@@ -161,6 +161,8 @@ impl Query {
         sub: Option<String>,
         access_code: Option<String>,
     ) -> Result<Vec<UserData>, String> {
+        AuthResult::from_context(ctx, Role::Admin).or(AuthResult::from_context(ctx, Role::Owner))?;
+
         let auth = ctx
             .data::<AuthResult>()
             .map_err(|e| "Error occurred retrieving account from token".to_string())?;
@@ -428,7 +430,9 @@ impl Mutation {
         &self,
         ctx: &Context<'_>,
         filter_id: Option<String>,
-        credentials: Option<String>,
+        filter_access_code: Option<String>,
+        name: Option<String>,
+        email: Option<String>,
         phone: Option<String>,
         role: Option<Role>,
         access_code: Option<String>,
@@ -437,27 +441,18 @@ impl Mutation {
         let r = gql::Resolver::from_context(ctx).await;
         let filter = UserFilter {
             id: filter_id.clone().map(|id| ObjectId::parse_str(id).unwrap()),
+            access_code: filter_access_code.clone(),
             ..Default::default()
         };
 
-        let access_code: Option<String> = {
-            if filter_id.is_some() && access_code.is_some() {
-                access_code
-            } else {
-                Some("".to_string())
-            }
-        };
-
-        let (sub, email, name, picture) =
-            get_sub_and_email_from_credentials(credentials.unwrap()).await?;
         let update = UserUpdate {
-            sub: Some(sub),
+            sub: None,
+            profile_pic: None,
+            name,
+            email,
             phone,
-            email: Some(email),
-            name: Some(name),
             role,
             access_code,
-            profile_pic: picture,
         };
 
         let user = r.update_user(filter, update).await?;
