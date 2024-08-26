@@ -12,7 +12,8 @@
                 "args": [
                     "build",
                     "--bin=server",
-                    "--package=server"
+                    "--package=server",
+                    "--release"
                 ],
                 "filter": {
                     "name": "server",
@@ -20,6 +21,9 @@
                 }
             },
             "args": [],
+            "env": {
+                "MONGODB_CONN_STRING": "mongodb://localhost:27017"
+            },
             "cwd": "${workspaceFolder}"
         },
         {
