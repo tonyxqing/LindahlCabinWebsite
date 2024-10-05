@@ -18,7 +18,7 @@ jobs:
           toolchain: stable
           target: armv7-unknown-linux-gnueabihf
           override: true
-      - run: cargo install --force --locked bindgen-cli
+          components: bindgen-cli
       - uses: actions-rs/cargo@v1
         with:
           use-cross: true
