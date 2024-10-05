@@ -2,7 +2,7 @@ name: ARMv7 Release
 on:
   push:
     branches:
-      - **
+      - '**'
 
 env:
   CARGO_TERM_COLOR: always
@@ -22,13 +22,13 @@ jobs:
         with:
           use-cross: true
           command: build
-          args: --release --target armv7-unknown-linux-gnueabihf
+          args: --manifest-path ./server/Cargo.toml --release --target armv7-unknown-linux-gnueabihf
       - name: Package Artifacts
         run: |
           src=$(pwd)
           stage=$(mktemp -d)
           RELEASE_VERSION=$(git rev-parse --short "$GITHUB_SHA")
-          cp target/armv7-unknown-linux-gnueabihf/release/disbot $stage/
+          cp ./server/target/armv7-unknown-linux-gnueabihf/release/disbot $stage/
           cd $stage 
           ASSET_NAME="disbot-$RELEASE_VERSION.tar.gz"
           ASSET_PATH="$src/$ASSET_NAME"
