@@ -98,7 +98,7 @@ async fn main() -> std::io::Result<()> {
             .service(greet)
             .service(web::resource("/").guard(guard::Get()).to(index_graphiql))
     })
-    .bind("0.0.0.0:8000")?
+    .bind_rustls_0_23("0.0.0.0:8000")?
     .run()
     .await
 }
