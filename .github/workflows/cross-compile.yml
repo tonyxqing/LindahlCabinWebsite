@@ -18,12 +18,7 @@ jobs:
           toolchain: stable
           target: armv7-unknown-linux-gnueabihf
           override: true
-      - run: |
-          sudo apt-get install -y build-essential
-          sudo apt-get install -y libclang1
-          cargo install --force --locked bindgen-cli
-          cargo install cross
-          cross build --manifest-path ./server/Cargo.toml --release --target armv7-unknown-linux-gnueabihf
+      - run: cargo install --force --locked bindgen-cli && cargo install cross && cross build --manifest-path ./server/Cargo.toml --release --target armv7-unknown-linux-gnueabihf
       - name: Package Artifacts
         run: |
           src=$(pwd)
