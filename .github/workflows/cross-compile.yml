@@ -1,8 +1,9 @@
 name: ARMv7 Release
 on:
   push:
-    branches:
-      - '**'
+    tags:
+      - v*
+
 
 env:
   CARGO_TERM_COLOR: always
