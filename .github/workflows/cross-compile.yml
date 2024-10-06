@@ -28,7 +28,7 @@ jobs:
           src=$(pwd)
           stage=$(mktemp -d)
           RELEASE_VERSION=$(git rev-parse --short "$GITHUB_SHA")
-          cp /server/target/armv7-unknown-linux-gnueabihf/release/server $stage/
+          cp server/target/armv7-unknown-linux-gnueabihf/release/server $stage/
           cd $stage 
           ASSET_NAME="server-$RELEASE_VERSION.tar.gz"
           ASSET_PATH="$src/$ASSET_NAME"
