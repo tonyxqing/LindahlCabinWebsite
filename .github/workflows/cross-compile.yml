@@ -23,3 +23,28 @@ jobs:
           use-cross: true
           command: build
           args: --manifest-path ./server/Cargo.toml --release --target armv7-unknown-linux-gnueabihf
+      - name: Package Artifacts
+        run: |
+          src=$(pwd)
+          stage=$(mktemp -d)
+          RELEASE_VERSION=$(git rev-parse --short "$GITHUB_SHA")
+          cp target/armv7-unknown-linux-gnueabihf/release/server $stage/
+          cd $stage 
+          ASSET_NAME="server-$RELEASE_VERSION.tar.gz"
+          ASSET_PATH="$src/$ASSET_NAME"
+          CHECKSUM_PATH="$ASSET_PATH.sha256"
+          echo "ASSET_PATH=$ASSET_PATH" >> $GITHUB_ENV
+          echo "CHECKSUM_PATH=$CHECKSUM_PATH" >> $GITHUB_ENV
+          ls .
+          echo $ASSET_NAME
+          echo $ASSET_PATH
+          tar czf $ASSET_PATH *
+          cd $src
+          sha256sum $ASSET_NAME > $CHECKSUM_PATH
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            ${{ env.ASSET_PATH }}
+            ${{ env.CHECKSUM_PATH }}
