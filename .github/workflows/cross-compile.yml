@@ -19,7 +19,7 @@ jobs:
           target: armv7-unknown-linux-gnueabihf
           override: true
       - run: |
-          sudo apt install libssl-dev
+          sudo apt install openssl libssl-dev
           cargo install cross
           cross build --manifest-path ./server/Cargo.toml --release --target armv7-unknown-linux-gnueabihf
       - uses: actions-rs/cargo@v1
